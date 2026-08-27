@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type Session } from "@supabase/supabase-js";
 import type { CardData, CardTheme, PaymentStatus } from "../types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -9,6 +9,28 @@ export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = supabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : null;
+
+export async function signIn(email: string, password: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
+
+export function getSession(): Promise<Session | null> {
+  if (!supabase) return Promise.resolve(null);
+  return supabase.auth.getSession().then(({ data }) => data.session);
+}
+
+export function onAuthChange(callback: (session: Session | null) => void): () => void {
+  if (!supabase) return () => {};
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  return () => data.subscription.unsubscribe();
+}
 
 export function getErrorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === "object" && "message" in err && typeof err.message === "string") {

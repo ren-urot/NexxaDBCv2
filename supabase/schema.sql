@@ -24,11 +24,15 @@ create table if not exists nexora_orders (
 
 alter table nexora_orders enable row level security;
 
--- Prototype-only policies: anyone holding the anon key (i.e. anyone who loads the
--- site, since the key ships in the client bundle) can read, create, and update
--- orders. There is no admin authentication yet. Before this goes anywhere near
--- real customer data, replace these with policies scoped to an authenticated
--- admin role (Supabase Auth) and restrict the public policy to insert-only.
-create policy "public_select_nexora_orders" on nexora_orders for select to anon using (true);
+-- Customers submitting a card order have no login — the Builder's payment
+-- step must be able to insert a new order anonymously. This is the ONLY
+-- thing the public (anon) role can do: create new rows, and nothing else.
 create policy "public_insert_nexora_orders" on nexora_orders for insert to anon with check (true);
-create policy "public_update_nexora_orders" on nexora_orders for update to anon using (true) with check (true);
+
+-- Reading and updating orders (the whole Admin dashboard) requires a signed-in
+-- Supabase Auth user. Create that admin account yourself in the Supabase
+-- Dashboard: Authentication > Users > Add user (email + password), since
+-- creating auth users requires the service_role key, which never belongs in
+-- this client-side app.
+create policy "authenticated_select_nexora_orders" on nexora_orders for select to authenticated using (true);
+create policy "authenticated_update_nexora_orders" on nexora_orders for update to authenticated using (true) with check (true);
