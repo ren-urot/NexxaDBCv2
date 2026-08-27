@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --color-background: #ffffff;
+  --color-hero: #fffbf9;
+  --color-foreground: #0f0f0f;
+  --color-dark: #1d1d1d;
+  --color-card: #ffffff;
+  --color-muted: #fafafa;
+  --color-muted-fg: #7d7d7d;
+  --color-muted-fg-2: #626262;
+  --color-accent: #ff3b00;
+  --color-accent-tint: #ffeae4;
+  --color-border: #e6dccb;
+  --color-border-2: #ececec;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* Hide scrollbars by default */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 2px; }
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
