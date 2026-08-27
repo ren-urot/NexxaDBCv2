@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Phone,
@@ -9,13 +9,18 @@ import {
   Lock,
   Upload,
   Sparkles,
+  Download,
 } from "lucide-react";
 import { LinkedinIcon, FacebookIcon, InstagramIcon } from "../components/SocialIcons";
 import type { CardData, CardTheme, BuilderStep, BackgroundStyle } from "../types";
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
 import { resolvePlan } from "../data/plans";
-import { createOrder, supabaseConfigured } from "../lib/supabase";
+import { createOrder, supabaseConfigured, getErrorMessage } from "../lib/supabase";
+import html2canvas from "html2canvas-pro";
+import qr199 from "../assets/qr-199.png";
+import qr499 from "../assets/qr-499.png";
+import jsPDF from "jspdf";
 
 const EMPTY_CARD: CardData = {
   template: "corporate",
@@ -141,6 +146,8 @@ export default function Builder() {
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const set = (key: keyof CardData) => (val: string) =>
     setCard((c) => ({ ...c, [key]: val }));
@@ -182,6 +189,24 @@ export default function Builder() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     setCard((c) => ({ ...c, background: "custom", backgroundImageUrl: url }));
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!cardRef.current) return;
+    setDownloadingPdf(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, { scale: 3, backgroundColor: null });
+      const imgData = canvas.toDataURL("image/png");
+      // Standard business card size, landscape, in points (3.5in x 2in @ 72pt/in).
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [252, 144] });
+      pdf.addImage(imgData, "PNG", 0, 0, 252, 144);
+      const filename = `${card.firstName || "my"}-${card.lastName || "card"}-nexxadbc.pdf`.toLowerCase().replace(/\s+/g, "-");
+      pdf.save(filename);
+    } catch (err) {
+      alert(getErrorMessage(err, "Failed to generate PDF. Please try again."));
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   return (
@@ -542,7 +567,7 @@ export default function Builder() {
               </div>
 
               {plan.quickActions && (
-                <div className="flex justify-center gap-3 mb-12">
+                <div className="flex justify-center gap-3 mb-6">
                   <span className="flex items-center gap-2 border border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-foreground)]">
                     <Phone size={13} /> Call
                   </span>
@@ -620,25 +645,16 @@ export default function Builder() {
                 ))}
               </div>
 
-              {/* QR placeholder */}
+              {/* Payment QR */}
               <div className="border border-[var(--color-border)] p-8 flex flex-col items-center gap-4 mb-8">
                 <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
-                  Scan to pay via {paymentMethod === "gcash" ? "GCash" : "Bank Transfer"}
+                  Scan with GCash, Maya, or your banking app
                 </div>
-                {/* QR code placeholder grid */}
-                <div className="w-36 h-36 bg-[var(--color-muted)] flex items-center justify-center border border-[var(--color-border)]">
-                  <div className="grid grid-cols-7 gap-0.5">
-                    {Array.from({ length: 49 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-3 h-3 ${(i * 7 + 3) % 5 < 2 ? "bg-[var(--color-foreground)]" : "bg-transparent"}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="text-[10px] text-[var(--color-muted-fg)]">
-                  {paymentMethod === "gcash" ? "GCash: 09XX XXX XXXX · Nexxa Digital" : "BDO: 1234 5678 9012 · Nexxa Digital Inc."}
-                </div>
+                <img
+                  src={plan.price === 199 ? qr199 : qr499}
+                  alt={`InstaPay QR code for ₱${plan.price} payment`}
+                  className="w-44 h-44 object-contain border border-[var(--color-border)]"
+                />
                 <div className="text-lg font-light text-[var(--color-foreground)]">₱{plan.price}.00</div>
               </div>
 
@@ -778,6 +794,26 @@ export default function Builder() {
                   provisioning only, separate from your exchange QR.
                 </p>
               </div>
+
+              {plan.pdfDownload && (
+                <div className="border border-[var(--color-border)] p-8 mb-8">
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-6">
+                    Your Card
+                  </div>
+                  <div className="flex justify-center mb-6">
+                    <div ref={cardRef} className="inline-block">
+                      <BusinessCard data={card} size="lg" />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    className="flex items-center gap-2 mx-auto border border-[var(--color-border)] px-5 py-2.5 text-xs tracking-widest uppercase text-[var(--color-foreground)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors disabled:opacity-40"
+                  >
+                    <Download size={13} /> {downloadingPdf ? "Generating…" : "Download PDF"}
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={() => navigate("/holder")}

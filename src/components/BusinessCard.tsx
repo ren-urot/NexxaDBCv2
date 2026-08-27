@@ -204,12 +204,12 @@ function renderCard(data: CardData, interactive: boolean) {
           <div className={`text-base font-semibold tracking-tight ${s.text}`}>
             {name}
           </div>
-          <div className={`text-[10px] tracking-widest uppercase mt-0.5 ${s.sub}`}>
+          <div className={`text-[12px] tracking-widest uppercase mt-0.5 ${s.sub}`}>
             {data.title || "Job Title"}
           </div>
         </div>
         <div className="pl-6 pb-5 pr-5">
-          <div className={`text-[9px] tracking-wide ${s.sub} space-y-0.5`}>
+          <div className={`text-[11px] tracking-wide ${s.sub} space-y-0.5`}>
             {data.company && <div className={`font-semibold text-[10px] ${s.text}`}>{data.company}</div>}
             {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
             {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
@@ -233,11 +233,11 @@ function renderCard(data: CardData, interactive: boolean) {
           <div className={`text-xl font-bold tracking-tight ${s.text}`}>
             {name}
           </div>
-          <div className={`text-[10px] tracking-widest uppercase mt-1 ${s.sub}`}>
+          <div className={`text-[12px] tracking-widest uppercase mt-1 ${s.sub}`}>
             {data.title || "Job Title"} {data.company ? `· ${data.company}` : ""}
           </div>
         </div>
-        <div className={`px-7 pb-5 flex items-center gap-3 text-[9px] ${s.sub}`}>
+        <div className={`px-7 pb-5 flex items-center gap-3 text-[11px] ${s.sub}`}>
           {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
           {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
           {data.website && <ContactLine icon={Globe} text={data.website} href={webHref(data.website)} />}
@@ -256,7 +256,7 @@ function renderCard(data: CardData, interactive: boolean) {
             <div className={`text-lg font-semibold tracking-tight ${s.text}`}>
               {name}
             </div>
-            <div className={`text-[9px] tracking-widest uppercase mt-0.5 ${s.sub}`}>{data.title || "Job Title"}</div>
+            <div className={`text-[12px] tracking-widest uppercase mt-0.5 ${s.sub}`}>{data.title || "Job Title"}</div>
           </div>
           {data.company && (
             <div
@@ -270,7 +270,7 @@ function renderCard(data: CardData, interactive: boolean) {
         </div>
         <div>
           <div className="h-px bg-zinc-700 mb-3" />
-          <div className={`flex justify-between items-end text-[9px] ${s.sub}`}>
+          <div className={`flex justify-between items-end text-[11px] ${s.sub}`}>
             <div className="space-y-0.5">
               {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
               {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
@@ -298,9 +298,9 @@ function renderCard(data: CardData, interactive: boolean) {
             <div className={`text-lg font-bold tracking-tight ${s.text}`}>
               {name}
             </div>
-            <div className={`text-[10px] tracking-widest uppercase mt-0.5 ${s.sub}`}>{data.title || "Job Title"}</div>
+            <div className={`text-[12px] tracking-widest uppercase mt-0.5 ${s.sub}`}>{data.title || "Job Title"}</div>
           </div>
-          <div className={`text-[9px] ${s.sub} space-y-0.5`}>
+          <div className={`text-[11px] ${s.sub} space-y-0.5`}>
             {data.company && <div className={`font-semibold ${s.text}`}>{data.company}</div>}
             {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
             {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
@@ -318,8 +318,8 @@ function renderCard(data: CardData, interactive: boolean) {
         <div className={`text-xl font-light tracking-tight ${s.text}`}>
           {name}
         </div>
-        <div className={`text-[10px] tracking-widest uppercase mt-1 mb-4 ${s.sub}`}>{data.title || "Job Title"}</div>
-        <div className={`text-[9px] tracking-wide ${s.sub} space-y-0.5`}>
+        <div className={`text-[12px] tracking-widest uppercase mt-1 mb-4 ${s.sub}`}>{data.title || "Job Title"}</div>
+        <div className={`text-[11px] tracking-wide ${s.sub} space-y-0.5`}>
           {data.company && <div>{data.company}</div>}
           {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
           {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
@@ -349,9 +349,9 @@ function renderCard(data: CardData, interactive: boolean) {
         )}
       </div>
       <div>
-        <div className="text-[10px] tracking-widest uppercase text-slate-400 mb-3">{data.title || "Job Title"}</div>
+        <div className="text-[12px] tracking-widest uppercase text-slate-400 mb-3">{data.title || "Job Title"}</div>
         <div className="h-px bg-slate-200 mb-3" />
-        <div className="flex justify-between items-end text-[9px] text-slate-400">
+        <div className="flex justify-between items-end text-[11px] text-slate-400">
           <div className="space-y-0.5">
             {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
             {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}

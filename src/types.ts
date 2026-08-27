@@ -11,6 +11,7 @@ export interface Plan {
   logoUpload: boolean;
   customBackground: boolean;
   quickActions: boolean;
+  pdfDownload: boolean;
 }
 
 export type BackgroundStyle = "none" | "dots" | "diagonal" | "gradient" | "custom";

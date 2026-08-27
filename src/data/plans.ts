@@ -10,6 +10,7 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
     logoUpload: false,
     customBackground: false,
     quickActions: false,
+    pdfDownload: false,
   },
   pro: {
     id: "pro",
@@ -20,6 +21,7 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
     logoUpload: true,
     customBackground: true,
     quickActions: true,
+    pdfDownload: true,
   },
 };
 
