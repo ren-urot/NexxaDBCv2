@@ -106,10 +106,10 @@ export default function Landing() {
 
       {/* Hero */}
       <section
-        className="px-6 md:px-12 pt-16 pb-24 bg-[var(--color-hero)] bg-no-repeat bg-cover bg-right overflow-hidden"
+        className="px-6 md:px-12 pt-16 pb-24 2xl:pt-0 2xl:pb-0 2xl:h-[800px] 2xl:flex 2xl:items-center bg-[var(--color-hero)] bg-no-repeat bg-cover bg-right overflow-hidden"
         style={{ backgroundImage: `url("${heroBg}")` }}
       >
-        <div className="max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-12 items-center">
+        <div className="w-full max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <span className="inline-block bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
               Smart. Professional. Paperless.
@@ -181,7 +181,7 @@ export default function Landing() {
             <span className="text-[var(--color-accent)]">Exchange</span>.{" "}
             <span className="text-[var(--color-accent)]">Save</span>.
           </div>
-          <p className="text-lg md:text-2xl font-light text-white/90 leading-relaxed">
+          <p className="text-[20px] font-light text-white/90 leading-relaxed">
             When someone scans your QR, your card is added directly to their Digital Card Holder or a new Holder is
             created for them automatically. No friction. No forms. No apps.
           </p>
