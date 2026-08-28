@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Menu, IdCard, Mail, Phone } from "lucide-react";
+import { ChevronLeft, Menu, IdCard } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase from "../assets/holder-open-case.webp";
-import dbcRibbon from "../assets/dbc-ribbon.webp";
 import QRCode from "qrcode";
 import Logo from "../components/Logo";
+import BusinessCard from "../components/BusinessCard";
 import { getPublicCard } from "../lib/supabase";
 
 interface SavedCard extends CardData {
@@ -110,55 +110,10 @@ const CARD_SLOTS: { top: number; left: number; light?: boolean }[] = [
   { top: 71.7, left: 19 },
 ];
 
-const DBC_CARD_W = 480;
-const DBC_CARD_H = 280;
-
-function DbcCardBackground({ data }: { data: CardData }) {
-  const style = data.background ?? "none";
-  if (style === "none") return null;
-  if (style === "custom") {
-    if (!data.backgroundImageUrl) return null;
-    return (
-      <div
-        className="absolute inset-0 pointer-events-none bg-cover bg-center opacity-[0.22]"
-        style={{ backgroundImage: `url("${data.backgroundImageUrl}")` }}
-      />
-    );
-  }
-  if (style === "dots") {
-    return (
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.08] text-black"
-        style={{ backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)", backgroundSize: "10px 10px" }}
-      />
-    );
-  }
-  if (style === "diagonal") {
-    return (
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.06] text-black"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, currentColor 0, currentColor 1px, transparent 1px, transparent 8px)",
-        }}
-      />
-    );
-  }
-  const accent = data.accentColor || "#c4622d";
-  return (
-    <div
-      className="absolute inset-0 pointer-events-none"
-      style={{ background: `radial-gradient(circle at 0% 0%, ${accent}33, transparent 60%)` }}
-    />
-  );
-}
-
-// Shows the customer's actual card in the branded NexxaDBC wallet-pass
-// layout — real data, logo, background, and an embedded scannable QR
-// linking to their public card — instead of a hardcoded "preview" design.
+// Shows the customer's actual card — same template, colors, logo, and
+// background as everywhere else in the app (Builder, Status page) — with
+// a real, scannable QR overlaid on it, instead of a separate mockup design.
 function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
-  const name = `${data.firstName} ${data.lastName}`.trim() || "Your Name";
-  const accent = data.accentColor || "#c4622d";
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -180,55 +135,11 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   }, [qrUrl]);
 
   return (
-    <div
-      className="relative mx-auto rounded-2xl bg-white shadow-2xl overflow-hidden"
-      style={{ width: DBC_CARD_W, height: DBC_CARD_H }}
-    >
-      <DbcCardBackground data={data} />
-
-      {/* Vertical orange ribbon (Nexxa | DBC wordmark, exported from Figma) */}
-      <div className="absolute right-0 top-0 bottom-0" style={{ width: "30%" }}>
-        <img src={dbcRibbon} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      </div>
-
-      {/* Customer's own logo, if uploaded */}
-      {data.logoUrl && (
-        <div className="absolute top-6 flex items-center justify-center max-w-[100px] max-h-[44px]" style={{ right: "34%" }}>
-          <img src={data.logoUrl} alt="Logo" className="max-w-full max-h-[44px] object-contain" />
-        </div>
-      )}
-
-      {/* Identity + contact block, read normally (no rotation) */}
-      <div className="absolute left-9 top-8 flex flex-col justify-between" style={{ right: "36%", bottom: 28 }}>
-        <div>
-          <div className="text-[13px] tracking-widest uppercase text-gray-400 mb-1">{data.title || "Job Title"}</div>
-          <div className="text-[32px] font-bold text-black leading-tight">{name}</div>
-        </div>
-        <div className="flex flex-col gap-2 text-[14px] text-gray-500">
-          {data.email && (
-            <a href={`mailto:${data.email}`} className="flex items-center gap-2 hover:underline">
-              <Mail size={15} className="shrink-0" style={{ color: accent }} /> {data.email}
-            </a>
-          )}
-          {data.mobile && (
-            <a href={`tel:${data.mobile}`} className="flex items-center gap-2 hover:underline">
-              <Phone size={15} className="shrink-0" style={{ color: accent }} /> {data.mobile}
-            </a>
-          )}
-        </div>
-      </div>
-
-      {data.website && (
-        <div className="absolute bottom-7 left-9 text-[12px] text-gray-400">{data.website}</div>
-      )}
-
-      {/* QR code, embedded on the card, overlapping the white/ribbon boundary */}
+    <div className="relative inline-block">
+      <BusinessCard data={data} size="lg" />
       {qrDataUrl && (
-        <div
-          className="absolute bg-white rounded-md p-1.5 shadow-lg border border-gray-100"
-          style={{ bottom: 20, right: "26%" }}
-        >
-          <img src={qrDataUrl} alt="Scan to view this card" className="w-[84px] h-[84px]" />
+        <div className="absolute bottom-2 right-2 bg-white rounded-md p-1 shadow-lg border border-gray-100">
+          <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
         </div>
       )}
     </div>
@@ -335,17 +246,10 @@ export default function Holder() {
     );
   });
 
-  // The card itself reads left-to-right (no rotation needed) and is wider
-  // than the narrow phone silhouette, so give it a wider frame whenever
-  // it's actually on screen rather than cramming a landscape card into a
-  // portrait phone bezel.
-  const showingCard = tab === "my-card" || Boolean(selectedCard);
-  const frameWidth = showingCard ? 560 : 360;
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-[var(--color-muted)] py-10 px-4">
       {/* Exit */}
-      <div className="mb-4 flex items-center justify-between" style={{ width: frameWidth, maxWidth: "100%" }}>
+      <div className="w-full max-w-sm mb-4 flex items-center justify-between">
         <button
           onClick={() => (navState?.card ? navigate(-1) : navigate("/"))}
           className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
@@ -359,8 +263,8 @@ export default function Holder() {
 
       {/* Phone mockup */}
       <div
-        className="min-h-[700px] bg-[var(--color-foreground)] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-stone-200 transition-[width] duration-200"
-        style={{ width: frameWidth, maxWidth: "100%", fontFamily: "var(--font-sans)" }}
+        className="w-[360px] min-h-[700px] bg-[var(--color-foreground)] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-stone-200"
+        style={{ fontFamily: "var(--font-sans)" }}
       >
         {/* Status bar */}
         <div className="text-white flex items-center justify-between px-6 pt-4 pb-2 text-[10px]">
