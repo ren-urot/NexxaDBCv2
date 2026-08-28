@@ -194,7 +194,7 @@ function renderCard(data: CardData, interactive: boolean) {
 
   if (data.template === "professional") {
     return (
-      <div className={`${wrapSize} relative overflow-hidden rounded-[20px] shadow-xl ${s.bg} flex flex-col justify-between`}>
+      <div className={`${wrapSize} relative overflow-hidden rounded-[10px] shadow-xl ${s.bg} flex flex-col justify-between`}>
         {overlays}
         <div
           className="absolute left-0 top-0 w-2 h-full"
@@ -223,7 +223,7 @@ function renderCard(data: CardData, interactive: boolean) {
 
   if (data.template === "modern") {
     return (
-      <div className={`${wrapSize} relative overflow-hidden rounded-[20px] shadow-xl ${s.bg} flex flex-col`}>
+      <div className={`${wrapSize} relative overflow-hidden rounded-[10px] shadow-xl ${s.bg} flex flex-col`}>
         {overlays}
         <div
           className="absolute top-0 left-0 right-0 h-1"
@@ -249,7 +249,7 @@ function renderCard(data: CardData, interactive: boolean) {
 
   if (data.template === "executive") {
     return (
-      <div className={`${wrapSize} relative overflow-hidden rounded-[20px] shadow-xl ${s.bg} flex flex-col justify-between px-7 py-6`}>
+      <div className={`${wrapSize} relative overflow-hidden rounded-[10px] shadow-xl ${s.bg} flex flex-col justify-between px-7 py-6`}>
         {overlays}
         <div className="flex justify-between items-start">
           <div>
@@ -287,7 +287,7 @@ function renderCard(data: CardData, interactive: boolean) {
 
   if (data.template === "creative") {
     return (
-      <div className={`${wrapSize} relative overflow-hidden rounded-[20px] shadow-xl ${s.bg} flex`}>
+      <div className={`${wrapSize} relative overflow-hidden rounded-[10px] shadow-xl ${s.bg} flex`}>
         {overlays}
         <div
           className="w-2 flex-shrink-0"
@@ -313,7 +313,7 @@ function renderCard(data: CardData, interactive: boolean) {
 
   if (data.template === "minimal") {
     return (
-      <div className={`${wrapSize} relative overflow-hidden rounded-[20px] shadow-xl ${s.bg} flex flex-col justify-center px-8`}>
+      <div className={`${wrapSize} relative overflow-hidden rounded-[10px] shadow-xl ${s.bg} flex flex-col justify-center px-8`}>
         {overlays}
         <div className={`text-xl font-light tracking-tight ${s.text}`}>
           {name}
@@ -332,7 +332,7 @@ function renderCard(data: CardData, interactive: boolean) {
 
   // Corporate (default)
   return (
-    <div className={`${wrapSize} relative overflow-hidden rounded-[20px] shadow-xl ${s.bg} flex flex-col justify-between px-7 py-6 border ${s.border}`}>
+    <div className={`${wrapSize} relative overflow-hidden rounded-[10px] shadow-xl ${s.bg} flex flex-col justify-between px-7 py-6 border ${s.border}`}>
       {overlays}
       <div className="flex justify-between items-start">
         <div className="text-xl font-semibold tracking-tight text-slate-900 mt-[20px]">

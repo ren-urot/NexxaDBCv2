@@ -424,7 +424,7 @@ export default function Holder() {
             <div className="text-white text-[15px] font-semibold">My Digital Business Card</div>
           </div>
           <div className="flex-1 flex items-center justify-center px-1 py-6">
-            <div style={{ transform: "translateY(65px)" }}>
+            <div style={{ transform: "translateY(30px)" }}>
               <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
             </div>
           </div>
