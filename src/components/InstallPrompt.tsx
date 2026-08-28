@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { X } from "lucide-react";
+import pwaButton from "../assets/pwa-button.png";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -90,7 +91,7 @@ export default function InstallPrompt({ dark = false }: { dark?: boolean }) {
           : "text-[var(--color-muted-fg)] border-[var(--color-border)] bg-[var(--color-muted)]"
       }`}
     >
-      <Download size={13} className="shrink-0" />
+      <img src={pwaButton} alt="" className="w-5 h-5 rounded-[6px] shrink-0" />
       {showManualHelp ? (
         <span className="flex-1 normal-case tracking-normal">
           {ios ? 'Tap the Share icon, then "Add to Home Screen".' : 'Tap the ⋮ menu (top right), then "Install app".'}
