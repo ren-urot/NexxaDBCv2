@@ -117,8 +117,12 @@ export async function updateOrderStatus(id: number, status: PaymentStatus): Prom
 
 export async function deleteOrder(id: number): Promise<void> {
   if (!supabase) throw new Error("Supabase is not configured");
-  const { error } = await supabase.from("nexora_orders").delete().eq("id", id);
+  // count: "exact" so a delete blocked by RLS (which affects 0 rows rather
+  // than erroring — a real Postgres RLS gotcha, not a Supabase quirk) is
+  // caught here instead of silently reporting success to the caller.
+  const { error, count } = await supabase.from("nexora_orders").delete({ count: "exact" }).eq("id", id);
   if (error) throw error;
+  if (!count) throw new Error("Delete did not affect any rows — check the delete policy on nexora_orders.");
 }
 
 export interface OrderStatusLookup {
