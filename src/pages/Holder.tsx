@@ -202,8 +202,15 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
             of the website line instead of overlapping it. */}
         {qrDataUrl && (
           <div
-            className="absolute right-2 top-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
-            style={{ transform: `translateY(-50%) scale(${QR_COUNTER_SCALE})`, transformOrigin: "right center" }}
+            className="absolute top-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
+            style={{
+              // Local "right" maps to screen "up" once the card rotates 90°
+              // (rotating the whole card, not the phone) — 50 screen-px is
+              // ~33 local px once the card's own SCALE (1.53x) is factored in.
+              right: 8 + 50 / SCALE,
+              transform: `translateY(-50%) scale(${QR_COUNTER_SCALE})`,
+              transformOrigin: "right center",
+            }}
           >
             <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
           </div>
