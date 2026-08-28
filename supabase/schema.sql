@@ -38,6 +38,12 @@ alter table nexora_orders add constraint nexora_orders_method_check check (metho
 -- coalesce(parent_order_id, id) to find the root.
 alter table nexora_orders add column if not exists parent_order_id bigint references nexora_orders(id);
 
+-- Business plan: "Lead Generation" — an order can require anyone who scans
+-- the card to leave contact info before it unlocks. Off by default. Added
+-- here (not further down near the RPCs that use it) because it has to
+-- exist before get_public_card's body below can reference it.
+alter table nexora_orders add column if not exists lead_gen_enabled boolean not null default false;
+
 -- A payment reference is proof of one specific real-world transaction, so
 -- reusing one (whether by accident or to fraudulently claim a payment that
 -- was never made for this order) must be impossible, not just discouraged
@@ -219,16 +225,98 @@ grant execute on function get_business_cards(text) to anon, authenticated;
 -- itself shows a "not active yet" state for anything other than approved/
 -- provisioned. SECURITY DEFINER again avoids needing any general SELECT
 -- policy on the table.
+--
+-- create or replace cannot change an existing function's return type with
+-- the same argument list (unlike adding an argument, which at least makes
+-- a new overload — this errors outright), so the old two-column shape has
+-- to be dropped explicitly before recreating it with the added column.
+drop function if exists get_public_card(text);
+
 create or replace function get_public_card(p_order_code text)
-returns table (card jsonb, status text)
+returns table (card jsonb, status text, lead_gen_enabled boolean)
 language sql
 security definer
 set search_path = public
 as $$
-  select o.card, o.status
+  select o.card, o.status, o.lead_gen_enabled
   from nexora_orders o
   where o.order_code = p_order_code
   limit 1;
 $$;
 
 grant execute on function get_public_card(text) to anon, authenticated;
+
+-- There's no login for card owners (order_code is this whole app's only
+-- credential — see get_public_card/get_business_cards above), so toggling
+-- this is trusted the same way: knowing the order_code is exactly as much
+-- proof of ownership as every other owner-only action already relies on.
+create or replace function set_lead_gen(p_order_code text, p_enabled boolean)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update nexora_orders set lead_gen_enabled = p_enabled where order_code = p_order_code;
+$$;
+
+grant execute on function set_lead_gen(text, boolean) to anon, authenticated;
+
+create table if not exists nexora_leads (
+  id bigint generated always as identity primary key,
+  order_id bigint not null references nexora_orders(id) on delete cascade,
+  contact text not null,
+  name text not null default '',
+  captured_at timestamptz not null default now()
+);
+
+-- RLS with no policies at all: every access goes through the two
+-- SECURITY DEFINER functions below, so there's deliberately no direct-table
+-- path for anon/authenticated at all — not even insert. A lead's contact
+-- info is exactly the kind of data that must never be broadly readable.
+alter table nexora_leads enable row level security;
+
+create or replace function submit_lead(p_order_code text, p_contact text, p_name text default '')
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order_id bigint;
+begin
+  select id into v_order_id from nexora_orders where order_code = p_order_code;
+  if v_order_id is null then
+    raise exception 'Unknown order code: %', p_order_code;
+  end if;
+
+  insert into nexora_leads (order_id, contact, name) values (v_order_id, p_contact, p_name);
+end;
+$$;
+
+grant execute on function submit_lead(text, text, text) to anon, authenticated;
+
+-- Powers the owner's "captured leads" list/CSV download on their own Card
+-- Holder. Same order_code-as-credential trust model as everything else —
+-- also resolves the family root first so a lead captured on any add-on
+-- card in the family shows up for the owner regardless of which card's
+-- order_code they're viewing from.
+create or replace function get_leads(p_order_code text)
+returns table (id bigint, contact text, name text, captured_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  with target as (
+    select coalesce(o.parent_order_id, o.id) as root_id
+    from nexora_orders o
+    where o.order_code = p_order_code
+    limit 1
+  )
+  select l.id, l.contact, l.name, l.captured_at
+  from nexora_leads l
+  join nexora_orders o on o.id = l.order_id
+  join target t on o.id = t.root_id or o.parent_order_id = t.root_id
+  order by l.captured_at desc;
+$$;
+
+grant execute on function get_leads(text) to anon, authenticated;

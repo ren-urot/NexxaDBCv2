@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase1 from "../assets/holder-open-case-1.png";
@@ -14,7 +14,16 @@ import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
 import QrScannerModal from "../components/QrScannerModal";
 import InstallPrompt from "../components/InstallPrompt";
-import { getPublicCard, getBusinessCards, type BusinessCardEntry } from "../lib/supabase";
+import {
+  getPublicCard,
+  getBusinessCards,
+  type BusinessCardEntry,
+  submitLead,
+  getLeads,
+  type LeadRow,
+  setLeadGenEnabled,
+} from "../lib/supabase";
+import { isOwnedOrder, isUnlockedCard, markUnlockedCard } from "../lib/deviceOwnership";
 
 interface SavedCard extends CardData {
   id: string;
@@ -221,6 +230,206 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   );
 }
 
+// Business plan "Lead Generation": shown in place of the card itself when
+// the owner has required contact info before it unlocks, to anyone who
+// isn't the owner's own device and hasn't already left their info here.
+function LeadGate({ ownerName, orderCode, onUnlock }: { ownerName: string; orderCode: string; onUnlock: () => void }) {
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    const trimmed = contact.trim();
+    if (!trimmed) {
+      setError("Enter your email or phone number.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await submitLead(orderCode, trimmed, name.trim());
+      markUnlockedCard(orderCode);
+      onUnlock();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col items-center justify-center px-6 text-center">
+      <div className="w-full max-w-sm">
+        <div className="text-white/40 text-[10px] tracking-widest uppercase mb-3">Before you continue</div>
+        <h1 className="text-white text-xl font-semibold mb-2">
+          {ownerName ? `${ownerName} would like your contact info` : "Leave your contact info to continue"}
+        </h1>
+        <p className="text-white/50 text-xs leading-relaxed mb-8">
+          Enter your email or phone number to view this digital business card.
+        </p>
+        <div className="space-y-3 text-left">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name (optional)"
+            className="w-full bg-white/5 border border-white/15 text-white text-sm px-4 py-3 rounded-[8px] focus:outline-none focus:border-white/40 placeholder:text-white/30"
+          />
+          <input
+            type="text"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder="Email or phone number"
+            className="w-full bg-white/5 border border-white/15 text-white text-sm px-4 py-3 rounded-[8px] focus:outline-none focus:border-white/40 placeholder:text-white/30"
+          />
+          {error && <div className="text-red-400 text-[11px]">{error}</div>}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full bg-white text-[var(--color-foreground)] text-xs tracking-widest uppercase py-3.5 rounded-[8px] hover:opacity-90 transition-opacity disabled:opacity-40"
+          >
+            {submitting ? "Submitting…" : "Continue"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Owner-only panel (only ever shown on the device that created the order —
+// see deviceOwnership.ts) for toggling Lead Generation and reviewing/
+// exporting captured leads.
+function csvEscape(value: string): string {
+  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+function downloadLeadsCsv(leads: LeadRow[]) {
+  const header = ["Name", "Contact", "Captured At"];
+  const rows = leads.map((l) => [l.name, l.contact, new Date(l.captured_at).toLocaleString()]);
+  const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "nexxadbc-leads.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function LeadSettingsPanel({
+  orderCode,
+  enabled,
+  onClose,
+  onToggle,
+}: {
+  orderCode: string;
+  enabled: boolean;
+  onClose: () => void;
+  onToggle: (next: boolean) => void;
+}) {
+  const [toggling, setToggling] = useState(false);
+  const [leads, setLeads] = useState<LeadRow[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLeads(orderCode)
+      .then((rows) => {
+        if (!cancelled) setLeads(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Couldn't load leads. Please try again.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderCode]);
+
+  const handleToggle = async () => {
+    setToggling(true);
+    try {
+      await setLeadGenEnabled(orderCode, !enabled);
+      onToggle(!enabled);
+    } catch {
+      // Leave the switch as-is — the parent's state didn't change, so the
+      // UI already reflects the failed toggle correctly.
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
+      <div className="w-full max-w-sm bg-[var(--color-foreground)] rounded-t-2xl p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-white text-sm font-semibold">Lead Generation</div>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between border border-white/15 rounded-[10px] px-4 py-3.5 mb-6">
+          <div className="pr-4">
+            <div className="text-white text-xs font-medium">Require contact info</div>
+            <div className="text-white/40 text-[10px] mt-0.5 leading-relaxed">
+              Anyone who scans your card must leave an email or phone number before it unlocks.
+            </div>
+          </div>
+          <button
+            onClick={handleToggle}
+            disabled={toggling}
+            className={`shrink-0 w-10 h-6 rounded-full transition-colors relative disabled:opacity-40 ${
+              enabled ? "bg-[var(--color-accent)]" : "bg-white/15"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                enabled ? "translate-x-[18px]" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-white/70 text-[10px] tracking-widest uppercase">
+            Captured Leads {leads ? `(${leads.length})` : ""}
+          </div>
+          {leads && leads.length > 0 && (
+            <button
+              onClick={() => downloadLeadsCsv(leads)}
+              className="flex items-center gap-1.5 text-[10px] tracking-widest uppercase text-white/60 hover:text-white transition-colors"
+            >
+              <Download size={12} /> CSV
+            </button>
+          )}
+        </div>
+
+        {loadError && <div className="text-red-400 text-[11px] mb-3">{loadError}</div>}
+
+        {leads === null && !loadError && (
+          <div className="text-white/40 text-xs py-4 text-center">Loading…</div>
+        )}
+        {leads?.length === 0 && (
+          <div className="text-white/40 text-xs py-4 text-center">No leads captured yet.</div>
+        )}
+        {leads && leads.length > 0 && (
+          <div className="divide-y divide-white/10 border border-white/10 rounded-[10px] overflow-hidden">
+            {leads.map((l) => (
+              <div key={l.id} className="px-4 py-3">
+                <div className="text-white text-xs font-medium">{l.name || "—"}</div>
+                <div className="text-white/50 text-[11px] mt-0.5">{l.contact}</div>
+                <div className="text-white/30 text-[10px] mt-0.5">{new Date(l.captured_at).toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type ScannedState = "idle" | "loading" | "ready" | "pending" | "not-found" | "error";
 
 export default function Holder() {
@@ -235,6 +444,7 @@ export default function Holder() {
   // path needs to fetch the card for itself.
   const [scannedCard, setScannedCard] = useState<CardData | null>(null);
   const [scannedState, setScannedState] = useState<ScannedState>("idle");
+  const [leadGenEnabled, setLeadGenEnabledState] = useState(false);
 
   useEffect(() => {
     if (navState?.card || !params.orderCode) return;
@@ -253,6 +463,7 @@ export default function Holder() {
           return;
         }
         setScannedCard(result.card);
+        setLeadGenEnabledState(result.lead_gen_enabled);
         setScannedState("ready");
       })
       .catch(() => {
@@ -267,6 +478,39 @@ export default function Holder() {
   const orderCode = navState?.orderCode ?? (scannedState === "ready" ? params.orderCode : undefined);
   const myCard = navState?.card ?? scannedCard ?? MY_CARD;
   const myCardQrUrl = orderCode ? `${window.location.origin}/holder/${orderCode}` : undefined;
+
+  // Reached fresh via the provisioning QR/link (no in-app navigation state):
+  // this IS the delivered card + holder, on the customer's own phone, not a
+  // preview of it. No fake phone bezel, no desktop-preview chrome.
+  const isStandalone = Boolean(params.orderCode) && !navState?.card;
+  const isOwnerDevice = orderCode ? isOwnedOrder(orderCode) : false;
+  const [justUnlocked, setJustUnlocked] = useState(false);
+  const gateUnlocked = justUnlocked || (orderCode ? isUnlockedCard(orderCode) : false);
+  const showLeadGate = isStandalone && leadGenEnabled && !isOwnerDevice && !gateUnlocked;
+  const [leadSettingsOpen, setLeadSettingsOpen] = useState(false);
+
+  // The main scan-fetch effect above only runs in standalone mode (it
+  // skips entirely once navState.card is present). The owner's Lead
+  // Generation toggle needs the real lead_gen_enabled value in preview
+  // mode too, so it doesn't just default to "off" every time they preview
+  // from Builder — fetch it separately there.
+  useEffect(() => {
+    if (!orderCode || !navState?.card) return;
+    let cancelled = false;
+    getPublicCard(orderCode)
+      .then((result) => {
+        if (!cancelled && result) setLeadGenEnabledState(result.lead_gen_enabled);
+      })
+      .catch(() => {
+        // Non-critical — the toggle just stays at its default until a
+        // real standalone visit picks up the actual value.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderCode]);
+
   const [tab, setTab] = useState<Tab>(params.orderCode ? "my-card" : "my-cards");
   const [holderOpen, setHolderOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -400,6 +644,16 @@ export default function Holder() {
     );
   }
 
+  if (showLeadGate && orderCode) {
+    return (
+      <LeadGate
+        ownerName={`${myCard.firstName} ${myCard.lastName}`.trim()}
+        orderCode={orderCode}
+        onUnlock={() => setJustUnlocked(true)}
+      />
+    );
+  }
+
   const filtered = cards.filter((c) => {
     const q = search.toLowerCase();
     return (
@@ -438,11 +692,6 @@ export default function Holder() {
   const pageStart = Math.min(holderPage, maxPage);
   const visibleCards = filtered.slice(pageStart, pageStart + activeSlots.length);
 
-  // Reached fresh via the provisioning QR/link (no in-app navigation state):
-  // this IS the delivered card + holder, on the customer's own phone, not a
-  // preview of it. No fake phone bezel, no desktop-preview chrome.
-  const isStandalone = Boolean(params.orderCode) && !navState?.card;
-
   const content = (
     <>
       {scannerOpen && <QrScannerModal onScan={handleScan} onClose={() => setScannerOpen(false)} />}
@@ -462,13 +711,30 @@ export default function Holder() {
             >
               <ChevronLeft size={22} />
             </button>
-            <div className="text-white text-[15px] font-semibold">My Digital Business Card</div>
+            <div className="flex-1 text-white text-[15px] font-semibold">My Digital Business Card</div>
+            {isOwnerDevice && orderCode && (
+              <button
+                onClick={() => setLeadSettingsOpen(true)}
+                className="text-white/50 hover:text-white transition-colors"
+                title="Lead Generation settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
           </div>
           <div className="flex-1 flex items-center justify-center px-1 py-6">
             <div style={{ transform: "translateY(30px)" }}>
               <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
             </div>
           </div>
+          {leadSettingsOpen && orderCode && (
+            <LeadSettingsPanel
+              orderCode={orderCode}
+              enabled={leadGenEnabled}
+              onClose={() => setLeadSettingsOpen(false)}
+              onToggle={setLeadGenEnabledState}
+            />
+          )}
         </div>
       )}
 

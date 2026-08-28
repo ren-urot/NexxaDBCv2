@@ -151,6 +151,7 @@ export async function getOrderStatus(paymentRef: string, email: string): Promise
 export interface PublicCardLookup {
   card: CardData;
   status: PaymentStatus;
+  lead_gen_enabled: boolean;
 }
 
 // Powers the public "scan to view this card" page. SECURITY DEFINER on the
@@ -178,6 +179,42 @@ export async function getBusinessCards(orderCode: string): Promise<BusinessCardE
   const { data, error } = await supabase.rpc("get_business_cards", { p_order_code: orderCode });
   if (error) throw error;
   return (data ?? []) as BusinessCardEntry[];
+}
+
+// Toggles Business plan "Lead Generation" for an order. Same order-code-
+// as-credential trust model as every other owner-only action in this app —
+// there's no login for card owners, so knowing the order_code already
+// stands in for proof of ownership everywhere else too.
+export async function setLeadGenEnabled(orderCode: string, enabled: boolean): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("set_lead_gen", { p_order_code: orderCode, p_enabled: enabled });
+  if (error) throw error;
+}
+
+// Submits a scanner's contact info to unlock a lead-gated card. SECURITY
+// DEFINER — nexora_leads has no direct-table policies at all, anon or
+// authenticated, so this RPC is the only way a lead ever gets written.
+export async function submitLead(orderCode: string, contact: string, name = ""): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("submit_lead", { p_order_code: orderCode, p_contact: contact, p_name: name });
+  if (error) throw error;
+}
+
+export interface LeadRow {
+  id: number;
+  contact: string;
+  name: string;
+  captured_at: string;
+}
+
+// Powers the owner's captured-leads list/CSV download. Resolves the family
+// root server-side, so this returns leads captured on any add-on card in
+// the family regardless of which card's order_code it's called with.
+export async function getLeads(orderCode: string): Promise<LeadRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("get_leads", { p_order_code: orderCode });
+  if (error) throw error;
+  return (data ?? []) as LeadRow[];
 }
 
 export interface OrderEventHandlers {

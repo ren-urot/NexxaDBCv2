@@ -17,6 +17,7 @@ import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
 import { resolvePlan } from "../data/plans";
 import { createOrder, getOrderStatus, supabaseConfigured, getErrorMessage } from "../lib/supabase";
+import { markOwnedOrder } from "../lib/deviceOwnership";
 import html2canvas from "html2canvas-pro";
 import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
@@ -880,6 +881,7 @@ export default function Builder() {
                         parent_order_code: addOn?.addTo ?? null,
                       });
                       setOrderCode(code);
+                      markOwnedOrder(code);
                       goNext();
                     } catch (err) {
                       setSubmitError(err instanceof Error ? err.message : "Failed to submit payment. Please try again.");
