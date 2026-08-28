@@ -140,7 +140,11 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   // in a mostly-empty frame.
   const CARD_W = 340;
   const CARD_H = 200;
-  const SCALE = 1.7;
+  const SCALE = 1.7 * 0.9;
+  // The QR sits inside the same scaled/rotated box as the card, so it
+  // shrinks along with it. Counter-scale it by the inverse of the card's
+  // size reduction to keep its on-screen size unchanged.
+  const QR_COUNTER_SCALE = 1 / 0.9;
 
   return (
     <div style={{ width: CARD_H * SCALE, height: CARD_W * SCALE, position: "relative" }}>
@@ -160,7 +164,10 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
             lands horizontally centered once the card is rotated 90°, clear
             of the website line instead of overlapping it. */}
         {qrDataUrl && (
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100">
+          <div
+            className="absolute right-2 top-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
+            style={{ transform: `translateY(-50%) scale(${QR_COUNTER_SCALE})`, transformOrigin: "right center" }}
+          >
             <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
           </div>
         )}
