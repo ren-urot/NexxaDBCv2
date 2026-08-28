@@ -540,16 +540,18 @@ export default function Holder() {
 
           {/* Card display */}
           <div className="flex-1 flex items-center justify-center">
-            <RealDbcCard
-              data={selectedCard}
-              qrUrl={
-                selectedCard.id === "own" && hasRealCard
-                  ? myCardQrUrl
-                  : collectedCards.some((c) => c.id === selectedCard.id)
-                  ? `${window.location.origin}/holder/${selectedCard.id}`
-                  : undefined
-              }
-            />
+            <div style={{ transform: "translateY(20px)" }}>
+              <RealDbcCard
+                data={selectedCard}
+                qrUrl={
+                  selectedCard.id === "own" && hasRealCard
+                    ? myCardQrUrl
+                    : collectedCards.some((c) => c.id === selectedCard.id)
+                    ? `${window.location.origin}/holder/${selectedCard.id}`
+                    : undefined
+                }
+              />
+            </div>
           </div>
         </div>
       )}
