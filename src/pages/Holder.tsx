@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase1 from "../assets/holder-open-case-1.png";
@@ -14,7 +14,7 @@ import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
 import QrScannerModal from "../components/QrScannerModal";
 import InstallPrompt from "../components/InstallPrompt";
-import { getPublicCard } from "../lib/supabase";
+import { getPublicCard, getBusinessCards, type BusinessCardEntry } from "../lib/supabase";
 
 interface SavedCard extends CardData {
   id: string;
@@ -277,10 +277,43 @@ export default function Holder() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
-  const realCards: SavedCard[] = [
-    ...(hasRealCard ? [{ ...myCard, id: "own", savedAt: new Date().toISOString() }] : []),
-    ...collectedCards,
-  ];
+  // "Add New Cards": every card in this order's family (itself plus any
+  // ₱199 add-on cards bought under the same Card Holder), fetched once we
+  // know our own order_code. Falls back to just the one card we already
+  // have in hand (navState/scannedCard) while that fetch is in flight.
+  const [family, setFamily] = useState<BusinessCardEntry[]>([]);
+  useEffect(() => {
+    if (!orderCode) {
+      setFamily([]);
+      return;
+    }
+    let cancelled = false;
+    getBusinessCards(orderCode)
+      .then((entries) => {
+        if (!cancelled) setFamily(entries);
+      })
+      .catch(() => {
+        // Non-critical: the single-card fallback below still works.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderCode]);
+
+  const ACTIVE_STATUSES: PaymentStatus[] = ["approved", "provisioned"];
+  const ownCards: SavedCard[] =
+    family.length > 0
+      ? family
+          .filter((f) => ACTIVE_STATUSES.includes(f.status))
+          .map((f) => ({ ...f.card, id: f.order_code, savedAt: new Date().toISOString() }))
+      : hasRealCard
+      ? [{ ...myCard, id: "own", savedAt: new Date().toISOString() }]
+      : [];
+  const familyRoot = family.find((f) => f.is_root);
+  const familySize = family.length > 0 ? family.length : hasRealCard ? 1 : 0;
+  const canAddCard = Boolean(orderCode) && familySize > 0 && familySize < 5;
+
+  const realCards: SavedCard[] = [...ownCards, ...collectedCards];
   const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
 
   const handleScan = async (data: string) => {
@@ -461,6 +494,24 @@ export default function Holder() {
             </div>
             {holderOpen && (
               <>
+                {canAddCard && (
+                  <button
+                    onClick={() =>
+                      navigate("/builder", {
+                        state: {
+                          addOn: {
+                            addTo: familyRoot?.order_code ?? orderCode,
+                            brandingCard: familyRoot?.card ?? myCard,
+                          },
+                        },
+                      })
+                    }
+                    className="text-white/50 hover:text-white transition-colors"
+                    title="Add a new card"
+                  >
+                    <Plus size={20} />
+                  </button>
+                )}
                 <button
                   onClick={() => setScannerOpen(true)}
                   className="text-white/50 hover:text-white transition-colors"
@@ -575,7 +626,7 @@ export default function Holder() {
                 qrUrl={
                   selectedCard.id === "own" && hasRealCard
                     ? myCardQrUrl
-                    : collectedCards.some((c) => c.id === selectedCard.id)
+                    : ownCards.some((c) => c.id === selectedCard.id) || collectedCards.some((c) => c.id === selectedCard.id)
                     ? `${window.location.origin}/holder/${selectedCard.id}`
                     : undefined
                 }

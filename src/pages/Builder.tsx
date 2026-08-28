@@ -147,23 +147,62 @@ interface BuilderSession {
 
 const SESSION_KEY = "nexora_builder_session_v1";
 
-function loadBuilderSession(): BuilderSession | null {
+function loadBuilderSession(key: string): BuilderSession | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(key);
     return raw ? (JSON.parse(raw) as BuilderSession) : null;
   } catch {
     return null;
   }
 }
 
+interface AddOnState {
+  // Order code of the family's root card (see get_business_cards) — new
+  // cards always attach here, never to a child, so a family stays exactly
+  // one level deep.
+  addTo: string;
+  brandingCard: CardData;
+}
+
+const ADD_ON_PRICE_PHP = 199;
+
+// Personal fields cleared when starting a new card from an existing
+// family's branding — everything else (template, colors, logo,
+// background, company) carries over so every card in the family matches.
+const ADD_ON_RESET_FIELDS: (keyof CardData)[] = [
+  "firstName",
+  "lastName",
+  "title",
+  "mobile",
+  "email",
+  "website",
+  "address",
+  "linkedin",
+  "facebook",
+  "instagram",
+  "whatsapp",
+];
+
 export default function Builder() {
   const navigate = useNavigate();
   const location = useLocation();
-  const plan = resolvePlan((location.state as { plan?: string } | null)?.plan);
-  const savedSession = loadBuilderSession();
+  const locationState = location.state as { plan?: string; addOn?: AddOnState } | null;
+  const plan = resolvePlan(locationState?.plan);
+  const addOn = locationState?.addOn ?? null;
+  const sessionKey = addOn ? `nexora_builder_addon_session_v1:${addOn.addTo}` : SESSION_KEY;
+  const savedSession = loadBuilderSession(sessionKey);
 
-  const [step, setStep] = useState<BuilderStep>(savedSession?.step ?? "template");
-  const [card, setCard] = useState<CardData>(savedSession?.card ?? { ...EMPTY_CARD, template: plan.templates[0] });
+  // The two steps that only make sense when choosing branding from
+  // scratch — an add-on card inherits its family's branding untouched.
+  const activeSteps = addOn ? STEPS.filter((s) => s.id !== "template" && s.id !== "customize") : STEPS;
+
+  const [step, setStep] = useState<BuilderStep>(savedSession?.step ?? (addOn ? "details" : "template"));
+  const [card, setCard] = useState<CardData>(
+    savedSession?.card ??
+      (addOn
+        ? { ...addOn.brandingCard, ...Object.fromEntries(ADD_ON_RESET_FIELDS.map((k) => [k, ""])) }
+        : { ...EMPTY_CARD, template: plan.templates[0] })
+  );
   const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank" | "wise">(savedSession?.paymentMethod ?? "gcash");
   const [paymentRef, setPaymentRef] = useState(savedSession?.paymentRef ?? "");
   const [proofNote, setProofNote] = useState(savedSession?.proofNote ?? "");
@@ -182,13 +221,14 @@ export default function Builder() {
   useEffect(() => {
     try {
       sessionStorage.setItem(
-        SESSION_KEY,
+        sessionKey,
         JSON.stringify({ step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode })
       );
     } catch {
       // Storage can be unavailable (private mode, quota) — losing resume
       // state isn't worth surfacing an error over.
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode]);
 
   const publicCardUrl = orderCode ? `${window.location.origin}/holder/${orderCode}` : null;
@@ -258,9 +298,11 @@ export default function Builder() {
   ];
   const detailsValid = DETAIL_FIELDS.every((f) => !validateField(f.key, card[f.key], f.required));
 
-  const stepIndex = STEPS.findIndex((s) => s.id === step);
-  const goNext = () => setStep(STEPS[stepIndex + 1].id);
-  const goBack = () => setStep(STEPS[stepIndex - 1].id);
+  const effectivePrice = addOn ? ADD_ON_PRICE_PHP : plan.price;
+
+  const stepIndex = activeSteps.findIndex((s) => s.id === step);
+  const goNext = () => setStep(activeSteps[stepIndex + 1].id);
+  const goBack = () => setStep(activeSteps[stepIndex - 1].id);
 
   // Data URLs (not blob: object URLs) — blob URLs only resolve in the tab
   // that created them, so they broke the moment card state got persisted
@@ -314,20 +356,23 @@ export default function Builder() {
       {/* Header */}
       <header className="shrink-0 border-b border-[var(--color-border)] px-4 md:px-8 py-4 flex flex-col gap-3 md:grid md:grid-cols-3 md:items-center">
         <div className="flex items-center justify-between md:justify-self-start gap-3">
-          <button onClick={() => navigate("/")} className="hover:opacity-70 transition-opacity">
+          <button
+            onClick={() => navigate(addOn ? `/holder/${addOn.addTo}` : "/")}
+            className="hover:opacity-70 transition-opacity"
+          >
             <Logo height={18} />
           </button>
           <button
-            onClick={() => navigate("/", { state: undefined })}
+            onClick={() => navigate(addOn ? `/holder/${addOn.addTo}` : "/", { state: undefined })}
             className="hidden md:flex items-center gap-1.5 text-[10px] tracking-widest uppercase border border-[var(--color-border)] rounded-full px-3 py-1.5 text-[var(--color-muted-fg)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
           >
-            <Sparkles size={11} /> {plan.name} Plan
+            <Sparkles size={11} /> {addOn ? "Add-on Card" : `${plan.name} Plan`}
           </button>
         </div>
 
         {/* Step progress */}
         <div className="flex items-center gap-1 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 md:justify-self-center">
-          {STEPS.map((s, i) => (
+          {activeSteps.map((s, i) => (
             <div key={s.id} className="flex items-center gap-1 shrink-0">
               <div
                 className={`text-[10px] tracking-widest uppercase px-2 py-1 transition-colors whitespace-nowrap ${
@@ -340,7 +385,7 @@ export default function Builder() {
               >
                 {s.label}
               </div>
-              {i < STEPS.length - 1 && (
+              {i < activeSteps.length - 1 && (
                 <div className={`w-4 h-px shrink-0 ${i < stepIndex ? "bg-[var(--color-foreground)]" : "bg-[var(--color-border)]"}`} />
               )}
             </div>
@@ -720,13 +765,15 @@ export default function Builder() {
               <div className="border border-[var(--color-border)] px-6 py-5 mb-8 flex items-center justify-between">
                 <div>
                   <div className="text-xs text-[var(--color-muted-fg)] tracking-wide">Digital Business Card + Holder</div>
-                  <div className="text-sm font-medium text-[var(--color-foreground)] mt-0.5">{plan.name} plan · One-time purchase</div>
+                  <div className="text-sm font-medium text-[var(--color-foreground)] mt-0.5">
+                    {addOn ? "Add-on card · One-time purchase" : `${plan.name} plan · One-time purchase`}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-light text-[var(--color-foreground)]">
-                    ₱{plan.price}
+                    ₱{effectivePrice}
                   </div>
-                  <div className="text-[10px] text-[var(--color-muted-fg)]">≈ ${formatUsd(plan.price)} USD</div>
+                  <div className="text-[10px] text-[var(--color-muted-fg)]">≈ ${formatUsd(effectivePrice)} USD</div>
                 </div>
               </div>
 
@@ -755,8 +802,8 @@ export default function Builder() {
                   <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
                     Pay via Wise
                   </div>
-                  <div className="text-3xl font-light text-[var(--color-foreground)]">${formatUsd(plan.price)} <span className="text-sm text-[var(--color-muted-fg)]">USD</span></div>
-                  <div className="text-xs text-[var(--color-muted-fg)]">≈ ₱{plan.price}.00 PHP</div>
+                  <div className="text-3xl font-light text-[var(--color-foreground)]">${formatUsd(effectivePrice)} <span className="text-sm text-[var(--color-muted-fg)]">USD</span></div>
+                  <div className="text-xs text-[var(--color-muted-fg)]">≈ ₱{effectivePrice}.00 PHP</div>
                   <div className="w-full border border-dashed border-[var(--color-border)] px-5 py-4 text-xs text-[var(--color-muted-fg)] text-center">
                     Send to: <span className="text-[var(--color-foreground)] font-medium">payments@nexxadbc.com</span> (Wise)
                     <br />
@@ -773,11 +820,11 @@ export default function Builder() {
                     Scan with GCash, Maya, or your banking app
                   </div>
                   <img
-                    src={plan.price === 199 ? qr199 : qr499}
-                    alt={`InstaPay QR code for ₱${plan.price} payment`}
+                    src={effectivePrice === 199 ? qr199 : qr499}
+                    alt={`InstaPay QR code for ₱${effectivePrice} payment`}
                     className="w-44 h-44 object-contain border border-[var(--color-border)]"
                   />
-                  <div className="text-lg font-light text-[var(--color-foreground)]">₱{plan.price}.00</div>
+                  <div className="text-lg font-light text-[var(--color-foreground)]">₱{effectivePrice}.00</div>
                 </div>
               )}
 
@@ -817,13 +864,14 @@ export default function Builder() {
                         customer: `${card.firstName} ${card.lastName}`.trim(),
                         email: card.email,
                         template: card.template,
-                        amount: plan.price,
-                        amount_usd: phpToUsd(plan.price),
+                        amount: effectivePrice,
+                        amount_usd: phpToUsd(effectivePrice),
                         exchange_rate: PHP_PER_USD,
                         method: paymentMethod,
                         payment_ref: paymentRef,
                         notes: proofNote,
                         card,
+                        parent_order_code: addOn?.addTo ?? null,
                       });
                       setOrderCode(code);
                       goNext();

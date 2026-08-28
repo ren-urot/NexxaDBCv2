@@ -65,6 +65,7 @@ export interface OrderRow {
   submitted_at: string;
   card: CardData;
   created_at: string;
+  parent_order_id: number | null;
 }
 
 export interface NewOrder {
@@ -78,6 +79,10 @@ export interface NewOrder {
   payment_ref: string;
   notes: string;
   card: CardData;
+  // Order code of any card in the family (root or an existing add-on
+  // child) this new card should be attached to. Omit/null for a normal,
+  // standalone order.
+  parent_order_code?: string | null;
 }
 
 export async function fetchOrders(): Promise<OrderRow[]> {
@@ -104,6 +109,7 @@ export async function createOrder(order: NewOrder): Promise<string> {
     p_payment_ref: order.payment_ref,
     p_notes: order.notes,
     p_card: order.card,
+    p_parent_order_code: order.parent_order_code ?? null,
   });
   if (error) throw error;
   return data as string;
@@ -154,6 +160,24 @@ export async function getPublicCard(orderCode: string): Promise<PublicCardLookup
   const { data, error } = await supabase.rpc("get_public_card", { p_order_code: orderCode }).maybeSingle();
   if (error) throw error;
   return data as PublicCardLookup | null;
+}
+
+export interface BusinessCardEntry {
+  order_code: string;
+  card: CardData;
+  status: PaymentStatus;
+  is_root: boolean;
+}
+
+// Powers the Card Holder's "Add New Cards" family list. Accepts any
+// order_code belonging to the family (the root order or one of its add-on
+// children) and returns every card in it, root first. SECURITY DEFINER on
+// the server side means this works with no general SELECT policy needed.
+export async function getBusinessCards(orderCode: string): Promise<BusinessCardEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("get_business_cards", { p_order_code: orderCode });
+  if (error) throw error;
+  return (data ?? []) as BusinessCardEntry[];
 }
 
 export interface OrderEventHandlers {

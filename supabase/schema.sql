@@ -30,6 +30,14 @@ alter table nexora_orders add column if not exists exchange_rate numeric not nul
 alter table nexora_orders drop constraint if exists nexora_orders_method_check;
 alter table nexora_orders add constraint nexora_orders_method_check check (method in ('gcash', 'bank', 'wise'));
 
+-- Links an add-on card (Business plan: "Add New Cards") back to the order
+-- that owns the Card Holder it belongs to. Null on every normal, standalone
+-- order and on the first ("root") card of a family. A family is always
+-- exactly one level deep: a root order plus its direct children — nothing
+-- ever points at a non-root row, so callers only ever need to resolve
+-- coalesce(parent_order_id, id) to find the root.
+alter table nexora_orders add column if not exists parent_order_id bigint references nexora_orders(id);
+
 alter table nexora_orders enable row level security;
 
 drop policy if exists "public_select_nexora_orders" on nexora_orders;
@@ -87,6 +95,15 @@ $$;
 
 grant execute on function get_order_status(text, text) to anon, authenticated;
 
+-- Postgres identifies a function by name + argument TYPE list, not by name
+-- alone — so adding a parameter below changes the signature, and
+-- `create or replace` would leave the old 10-arg version around as a
+-- second overload instead of truly replacing it. Two overloads that could
+-- both match a same-shaped call is exactly the kind of ambiguity that
+-- caused repeated payment failures earlier (see the RLS comments above);
+-- drop the old shape explicitly so there's only ever one submit_order.
+drop function if exists submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb);
+
 -- Creates an order via a SECURITY DEFINER function instead of a raw table
 -- insert. This bypasses RLS internally (the function runs as its owner,
 -- not the caller), so order creation no longer depends on the anon/
@@ -104,7 +121,8 @@ create or replace function submit_order(
   p_method text,
   p_payment_ref text,
   p_notes text,
-  p_card jsonb
+  p_card jsonb,
+  p_parent_order_code text default null
 )
 returns text
 language plpgsql
@@ -113,14 +131,33 @@ set search_path = public
 as $$
 declare
   v_order_code text;
+  v_parent_id bigint;
 begin
+  -- Resolved server-side from the order_code the client already has (never
+  -- a raw numeric id — the client never sees or handles those), and always
+  -- re-pointed at the true root so a family stays exactly one level deep
+  -- even if the caller passed a child's own order_code by mistake.
+  if p_parent_order_code is not null then
+    select coalesce(o.parent_order_id, o.id) into v_parent_id
+    from nexora_orders o
+    where o.order_code = p_parent_order_code;
+
+    if v_parent_id is null then
+      raise exception 'Unknown parent order code: %', p_parent_order_code;
+    end if;
+
+    if (select count(*) from nexora_orders where id = v_parent_id or parent_order_id = v_parent_id) >= 5 then
+      raise exception 'This Card Holder already has the maximum of 5 cards.';
+    end if;
+  end if;
+
   insert into nexora_orders (
     customer, email, template, amount, amount_usd, exchange_rate,
-    method, payment_ref, notes, status, card
+    method, payment_ref, notes, status, card, parent_order_id
   )
   values (
     p_customer, p_email, p_template, p_amount, p_amount_usd, p_exchange_rate,
-    p_method, p_payment_ref, p_notes, 'submitted', p_card
+    p_method, p_payment_ref, p_notes, 'submitted', p_card, v_parent_id
   )
   returning order_code into v_order_code;
 
@@ -128,8 +165,33 @@ begin
 end;
 $$;
 
-grant execute on function submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb)
+grant execute on function submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb, text)
   to anon, authenticated;
+
+-- Powers the Card Holder's "Add New Cards" list: given any order_code that
+-- belongs to a family (root or an add-on child), returns every card in
+-- that family. SECURITY DEFINER avoids needing a general SELECT policy —
+-- same trust model as get_public_card: knowing an order_code within the
+-- family is the only credential this app has, root or child.
+create or replace function get_business_cards(p_order_code text)
+returns table (order_code text, card jsonb, status text, is_root boolean)
+language sql
+security definer
+set search_path = public
+as $$
+  with target as (
+    select coalesce(o.parent_order_id, o.id) as root_id
+    from nexora_orders o
+    where o.order_code = p_order_code
+    limit 1
+  )
+  select o.order_code, o.card, o.status, (o.parent_order_id is null) as is_root
+  from nexora_orders o, target t
+  where o.id = t.root_id or o.parent_order_id = t.root_id
+  order by o.id asc;
+$$;
+
+grant execute on function get_business_cards(text) to anon, authenticated;
 
 -- Serves the public "scan to view this card" page (/c/:orderCode). Card
 -- fields are meant to be shared once a card exists (that's the point of a
