@@ -204,6 +204,9 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activityAlert, setActivityAlert] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<{ id: number; message: string; time: string; read: boolean }[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifIdCounter = useRef(0);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
     typeof Notification === "undefined" ? "unsupported" : Notification.permission
   );
@@ -249,11 +252,23 @@ function AdminDashboard() {
       }
     };
 
+    const pushActivity = (message: string) => {
+      setActivityAlert(message);
+      notifIdCounter.current += 1;
+      const entry = {
+        id: notifIdCounter.current,
+        message,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        read: false,
+      };
+      setNotifications((ns) => [entry, ...ns].slice(0, 30));
+    };
+
     const unsubscribe = subscribeToOrderEvents({
       onInsert: (row) => {
         const order = toAdminOrder(row);
         setOrders((os) => (os.some((o) => o.rowId === order.rowId) ? os : [order, ...os]));
-        setActivityAlert(`🔔 New order submitted for approval — ${order.customer} · ${order.id} · ₱${order.amount}`);
+        pushActivity(`🔔 New order submitted for approval — ${order.customer} · ${order.id} · ₱${order.amount}`);
         notify("New order submitted", `${order.customer} · ${order.id} · ₱${order.amount}`);
       },
       onUpdate: (row) => {
@@ -264,7 +279,7 @@ function AdminDashboard() {
         const order = toAdminOrder(row);
         setOrders((os) => os.map((o) => (o.rowId === order.rowId ? order : o)));
         if (selected?.rowId === order.rowId) setSelected(order);
-        setActivityAlert(`✓ ${order.id} status changed to ${STATUS_LABELS[order.status]} (by another admin)`);
+        pushActivity(`✓ ${order.id} status changed to ${STATUS_LABELS[order.status]} (by another admin)`);
         notify("Order updated", `${order.id} → ${STATUS_LABELS[order.status]}`);
       },
       onDelete: (oldRow) => {
@@ -274,7 +289,7 @@ function AdminDashboard() {
         }
         setOrders((os) => os.filter((o) => o.rowId !== oldRow.id));
         if (selected?.rowId === oldRow.id) setSelected(null);
-        setActivityAlert(`🗑 An order was deleted by another admin`);
+        pushActivity(`🗑 An order was deleted by another admin`);
         notify("Order deleted", "An order was removed by another admin");
       },
     });
@@ -344,32 +359,59 @@ function AdminDashboard() {
         <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">Admin Dashboard</div>
         {supabaseConfigured ? (
           <div className="flex items-center gap-4">
-            <button
-              onClick={notifPermission === "default" ? requestNotifPermission : undefined}
-              disabled={notifPermission !== "default"}
-              title={
-                notifPermission === "granted"
-                  ? "Notifications enabled"
-                  : notifPermission === "denied"
-                  ? "Notifications blocked — enable them in your browser's site settings"
-                  : notifPermission === "unsupported"
-                  ? "Notifications aren't supported in this browser"
-                  : "Enable browser notifications for new orders and admin activity"
-              }
-              className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
-                notifPermission === "granted"
-                  ? "text-[var(--color-accent)]"
-                  : notifPermission === "default"
-                  ? "text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] cursor-pointer"
-                  : "text-[var(--color-muted-fg)] opacity-40 cursor-not-allowed"
-              }`}
-            >
-              {notifPermission === "denied" || notifPermission === "unsupported" ? (
-                <BellOff size={16} />
-              ) : (
-                <Bell size={16} />
+            <div className="relative">
+              <button
+                onClick={() => {
+                  const opening = !notifOpen;
+                  setNotifOpen(opening);
+                  if (opening) setNotifications((ns) => ns.map((n) => ({ ...n, read: true })));
+                }}
+                title="Notifications"
+                className="relative flex items-center justify-center w-7 h-7 rounded-full text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
+              >
+                {notifPermission === "denied" || notifPermission === "unsupported" ? (
+                  <BellOff size={16} />
+                ) : (
+                  <Bell size={16} />
+                )}
+                {notifications.some((n) => !n.read) && (
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-red-500" />
+                )}
+              </button>
+
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-[var(--color-background)] border border-[var(--color-border)] shadow-lg z-20">
+                    <div className="px-4 py-3 border-b border-[var(--color-border)] text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
+                      Notifications
+                    </div>
+                    {notifPermission === "default" && (
+                      <button
+                        onClick={requestNotifPermission}
+                        className="w-full text-left px-4 py-3 border-b border-[var(--color-border)] text-xs text-[var(--color-accent)] hover:bg-[var(--color-muted)] transition-colors"
+                      >
+                        Enable browser notifications
+                      </button>
+                    )}
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-[10px] text-[var(--color-muted-fg)] text-center">
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[var(--color-border)]">
+                        {notifications.map((n) => (
+                          <div key={n.id} className="px-4 py-3 text-xs text-[var(--color-foreground)]">
+                            <div>{n.message}</div>
+                            <div className="text-[10px] text-[var(--color-muted-fg)] mt-1">{n.time}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-            </button>
+            </div>
             <button
               onClick={() => signOut()}
               className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
