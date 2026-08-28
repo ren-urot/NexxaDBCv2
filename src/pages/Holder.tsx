@@ -476,8 +476,10 @@ export default function Holder() {
               onClick={() => setHolderOpen(true)}
               className="flex-1 flex flex-col items-center justify-center px-1 py-10 w-full"
             >
-              <img src={holderEmpty} alt="Tap to open your card holder" className="w-[341px] h-auto mb-6" />
-              <div className="text-white/50 text-xs text-center">Tap to open your card holder</div>
+              <div style={{ transform: "translateY(-35px)" }} className="flex flex-col items-center">
+                <img src={holderEmpty} alt="Tap to open your card holder" className="w-[341px] h-auto mb-6" />
+                <div className="text-white/50 text-xs text-center">Tap to open your card holder</div>
+              </div>
             </button>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center pb-5">
