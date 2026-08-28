@@ -6,6 +6,14 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+declare global {
+  interface Window {
+    // Captured by an inline script in index.html, before any React module
+    // loads — see the comment there for why.
+    __deferredInstallPrompt?: BeforeInstallPromptEvent;
+  }
+}
+
 function isStandaloneDisplay(): boolean {
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   // iOS Safari's own non-standard flag for "launched from home screen".
@@ -34,10 +42,20 @@ export default function InstallPrompt({ dark = false }: { dark?: boolean }) {
       setShowIosHelp(true);
       return;
     }
+    const fire = (installEvent: BeforeInstallPromptEvent) => {
+      installEvent.prompt();
+      window.__deferredInstallPrompt = undefined;
+    };
+    // The event may have already fired (and been captured by index.html's
+    // inline script) before this component ever mounted — e.g. while an
+    // async card fetch was still in flight. Use it immediately if so.
+    if (window.__deferredInstallPrompt) {
+      fire(window.__deferredInstallPrompt);
+      return;
+    }
     const onPrompt = (e: Event) => {
       e.preventDefault();
-      const installEvent = e as BeforeInstallPromptEvent;
-      installEvent.prompt();
+      fire(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);

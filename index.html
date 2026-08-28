@@ -11,6 +11,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NexxaDBC" />
     <title>NexxaDBC</title>
+    <script>
+      // Capture beforeinstallprompt as early as possible — before any React
+      // module even loads — since it can fire within the first moments of
+      // page load and Chrome discards it if nothing calls preventDefault()
+      // in time. The app reads window.__deferredInstallPrompt once it's
+      // ready to act on it, however late that ends up being.
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        window.__deferredInstallPrompt = e;
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
