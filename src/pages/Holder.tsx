@@ -308,6 +308,150 @@ export default function Holder() {
       ? holderOpenCase4
       : holderOpenCase;
 
+  // Reached fresh via the provisioning QR/link (no in-app navigation state):
+  // this IS the delivered card + holder, on the customer's own phone, not a
+  // preview of it. No fake phone bezel, no desktop-preview chrome.
+  const isStandalone = Boolean(params.orderCode) && !navState?.card;
+
+  const content = (
+    <>
+      {/* MY DBC tab */}
+      {tab === "my-card" && (
+        <div className="min-h-full flex flex-col">
+          <div className="px-5 pt-1 pb-2 flex items-center gap-4">
+            <button
+              onClick={() => setTab("my-cards")}
+              className="text-white/70 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <div className="text-white text-[15px] font-semibold">My Digital Business Card</div>
+          </div>
+          <div className="flex-1 flex items-center justify-center px-1 py-6">
+            <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
+          </div>
+        </div>
+      )}
+
+      {/* SAVED CARDS */}
+      {tab === "my-cards" && !selectedCard && (
+        <div className="min-h-full flex flex-col">
+          <div className="px-5 pt-1 pb-2 flex items-center gap-4">
+            {holderOpen ? (
+              <button
+                onClick={() => setHolderOpen(false)}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <ChevronLeft size={22} />
+              </button>
+            ) : (
+              <Menu size={22} className="text-white/40" />
+            )}
+            <div className="flex-1">
+              <div className="text-white text-lg font-semibold leading-tight">My Card Holder</div>
+              {!holderOpen && (
+                <div className="text-white/50 text-xs mt-0.5">Browse your business cards</div>
+              )}
+            </div>
+            {holderOpen && (
+              <button
+                onClick={() => setTab("my-card")}
+                className="text-white/50 hover:text-white transition-colors"
+                title="My Digital Business Card"
+              >
+                <IdCard size={20} />
+              </button>
+            )}
+          </div>
+
+          {!holderOpen ? (
+            <button
+              onClick={() => setHolderOpen(true)}
+              className="flex-1 flex flex-col items-center justify-center px-1 py-10 w-full"
+            >
+              <img src={holderEmpty} alt="Tap to open your card holder" className="w-[341px] h-auto mb-6" />
+              <div className="text-white/50 text-xs text-center">Tap to open your card holder</div>
+            </button>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center pb-5">
+              <div className="relative mb-3" style={{ width: OPEN_CASE_W, marginTop: 40 }}>
+                <img
+                  src={activeCaseArt}
+                  alt="Card holder"
+                  className="w-full h-auto"
+                />
+                {filtered.slice(0, activeSlots.length).map((c, i) => {
+                  const slot = activeSlots[i];
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedCard(c)}
+                      className="absolute text-left leading-tight"
+                      style={{ top: `${slot.top}%`, left: `${slot.left}%` }}
+                    >
+                      <div className={`text-xs font-semibold ${slot.light ? "text-white" : "text-black"}`}>
+                        {c.firstName} {c.lastName}
+                      </div>
+                      <div className={`text-[9px] mt-0.5 ${slot.light ? "text-white/70" : "text-black/60"}`}>
+                        {c.title}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Real search input, overlaid on the bar baked into the artwork */}
+                <input
+                  type="text"
+                  name="search-card"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search Card"
+                  className="absolute bg-transparent text-xs text-white focus:outline-none placeholder:text-white/40"
+                  style={{ top: 420.65, bottom: 12.35, left: 51.5, width: 227.4 }}
+                />
+              </div>
+
+              {filtered.length === 0 && (
+                <div className="text-[10px] text-white/40 text-center py-4">No cards match your search.</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CARD DETAIL */}
+      {tab === "my-cards" && selectedCard && (
+        <div className="min-h-full flex flex-col p-5">
+          <button
+            onClick={() => setSelectedCard(null)}
+            className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-white/50 mb-5 hover:text-white transition-colors"
+          >
+            <ChevronLeft size={12} /> All Cards
+          </button>
+
+          {/* Card display */}
+          <div className="flex-1 flex items-center justify-center">
+            <RealDbcCard data={selectedCard} qrUrl={selectedCard.id === "1" && hasRealCard ? myCardQrUrl : undefined} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  if (isStandalone) {
+    return (
+      <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col" style={{ fontFamily: "var(--font-sans)" }}>
+        <div className="flex-1 overflow-y-auto">{content}</div>
+        <button
+          onClick={() => navigate("/")}
+          className="text-[9px] tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors py-3 text-center"
+        >
+          NexxaDBC
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-[var(--color-muted)] py-10 px-4">
       {/* Exit */}
@@ -339,129 +483,7 @@ export default function Holder() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* MY DBC tab */}
-          {tab === "my-card" && (
-            <div className="min-h-full flex flex-col">
-              <div className="px-5 pt-1 pb-2 flex items-center gap-4">
-                <button
-                  onClick={() => setTab("my-cards")}
-                  className="text-white/70 hover:text-white transition-colors"
-                >
-                  <ChevronLeft size={22} />
-                </button>
-                <div className="text-white text-[15px] font-semibold">My Digital Business Card</div>
-              </div>
-              <div className="flex-1 flex items-center justify-center px-1 py-6">
-                <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
-              </div>
-            </div>
-          )}
-
-          {/* SAVED CARDS */}
-          {tab === "my-cards" && !selectedCard && (
-            <div className="min-h-full flex flex-col">
-              <div className="px-5 pt-1 pb-2 flex items-center gap-4">
-                {holderOpen ? (
-                  <button
-                    onClick={() => setHolderOpen(false)}
-                    className="text-white/70 hover:text-white transition-colors"
-                  >
-                    <ChevronLeft size={22} />
-                  </button>
-                ) : (
-                  <Menu size={22} className="text-white/40" />
-                )}
-                <div className="flex-1">
-                  <div className="text-white text-lg font-semibold leading-tight">My Card Holder</div>
-                  {!holderOpen && (
-                    <div className="text-white/50 text-xs mt-0.5">Browse your business cards</div>
-                  )}
-                </div>
-                {holderOpen && (
-                  <button
-                    onClick={() => setTab("my-card")}
-                    className="text-white/50 hover:text-white transition-colors"
-                    title="My Digital Business Card"
-                  >
-                    <IdCard size={20} />
-                  </button>
-                )}
-              </div>
-
-              {!holderOpen ? (
-                <button
-                  onClick={() => setHolderOpen(true)}
-                  className="flex-1 flex flex-col items-center justify-center px-1 py-10 w-full"
-                >
-                  <img src={holderEmpty} alt="Tap to open your card holder" className="w-[341px] h-auto mb-6" />
-                  <div className="text-white/50 text-xs text-center">Tap to open your card holder</div>
-                </button>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center pb-5">
-                  <div className="relative mb-3" style={{ width: OPEN_CASE_W, marginTop: 40 }}>
-                    <img
-                      src={activeCaseArt}
-                      alt="Card holder"
-                      className="w-full h-auto"
-                    />
-                    {filtered.slice(0, activeSlots.length).map((c, i) => {
-                      const slot = activeSlots[i];
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => setSelectedCard(c)}
-                          className="absolute text-left leading-tight"
-                          style={{ top: `${slot.top}%`, left: `${slot.left}%` }}
-                        >
-                          <div className={`text-xs font-semibold ${slot.light ? "text-white" : "text-black"}`}>
-                            {c.firstName} {c.lastName}
-                          </div>
-                          <div className={`text-[9px] mt-0.5 ${slot.light ? "text-white/70" : "text-black/60"}`}>
-                            {c.title}
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    {/* Real search input, overlaid on the bar baked into the artwork */}
-                    <input
-                      type="text"
-                      name="search-card"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search Card"
-                      className="absolute bg-transparent text-xs text-white focus:outline-none placeholder:text-white/40"
-                      style={{ top: 420.65, bottom: 12.35, left: 51.5, width: 227.4 }}
-                    />
-                  </div>
-
-                  {filtered.length === 0 && (
-                    <div className="text-[10px] text-white/40 text-center py-4">No cards match your search.</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CARD DETAIL */}
-          {tab === "my-cards" && selectedCard && (
-            <div className="min-h-full flex flex-col p-5">
-              <button
-                onClick={() => setSelectedCard(null)}
-                className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-white/50 mb-5 hover:text-white transition-colors"
-              >
-                <ChevronLeft size={12} /> All Cards
-              </button>
-
-              {/* Card display */}
-              <div className="flex-1 flex items-center justify-center">
-                <RealDbcCard data={selectedCard} qrUrl={selectedCard.id === "1" && hasRealCard ? myCardQrUrl : undefined} />
-              </div>
-            </div>
-          )}
-
-        </div>
+        <div className="flex-1 overflow-y-auto">{content}</div>
       </div>
     </div>
   );
