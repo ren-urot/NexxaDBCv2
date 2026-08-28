@@ -12,6 +12,7 @@ import {
   signOut,
   getSession,
   onAuthChange,
+  subscribeToNewOrders,
   type OrderRow,
 } from "../lib/supabase";
 
@@ -45,6 +46,8 @@ function toAdminOrder(row: OrderRow): AdminOrder {
     email: row.email,
     template: row.template,
     amount: row.amount,
+    amountUsd: row.amount_usd,
+    exchangeRate: row.exchange_rate,
     method: row.method,
     paymentRef: row.payment_ref,
     status: row.status,
@@ -154,6 +157,10 @@ function AdminDashboard() {
   const [selected, setSelected] = useState<AdminOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [newOrderAlert, setNewOrderAlert] = useState<AdminOrder | null>(null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission
+  );
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -179,6 +186,33 @@ function AdminDashboard() {
       cancelled = true;
     };
   }, []);
+
+  // Live alert + browser notification when a new order is submitted for approval.
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    const unsubscribe = subscribeToNewOrders((row) => {
+      const order = toAdminOrder(row);
+      setOrders((os) => (os.some((o) => o.rowId === order.rowId) ? os : [order, ...os]));
+      setNewOrderAlert(order);
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification("New order submitted", {
+          body: `${order.customer} · ${order.id} · ₱${order.amount}`,
+        });
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!newOrderAlert) return;
+    const timer = setTimeout(() => setNewOrderAlert(null), 8000);
+    return () => clearTimeout(timer);
+  }, [newOrderAlert]);
+
+  const requestNotifPermission = () => {
+    if (typeof Notification === "undefined") return;
+    Notification.requestPermission().then(setNotifPermission);
+  };
 
   const updateStatus = async (order: AdminOrder, status: PaymentStatus) => {
     const previous = order.status;
@@ -210,16 +244,37 @@ function AdminDashboard() {
         </button>
         <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">Admin Dashboard</div>
         {supabaseConfigured ? (
-          <button
-            onClick={() => signOut()}
-            className="w-20 text-right text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center gap-4">
+            {notifPermission === "default" && (
+              <button
+                onClick={requestNotifPermission}
+                className="text-[10px] tracking-widest uppercase text-[var(--color-accent)] hover:opacity-70 transition-opacity"
+              >
+                Enable Notifications
+              </button>
+            )}
+            <button
+              onClick={() => signOut()}
+              className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         ) : (
           <div className="w-20" />
         )}
       </header>
+
+      {newOrderAlert && (
+        <div className="text-[10px] text-green-800 bg-green-50 border-b border-green-200 px-8 py-2.5 flex items-center justify-between">
+          <span>
+            🔔 New order submitted for approval — <strong>{newOrderAlert.customer}</strong> · {newOrderAlert.id} · ₱{newOrderAlert.amount}
+          </span>
+          <button onClick={() => setNewOrderAlert(null)} className="text-green-800 hover:opacity-60 transition-opacity ml-4">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {!supabaseConfigured && (
         <div className="text-[10px] text-amber-700 bg-amber-50 border-b border-amber-200 px-8 py-2 text-center">
@@ -388,7 +443,7 @@ function AdminDashboard() {
                           ["Customer", selected.customer],
                           ["Email", selected.email],
                           ["Template", selected.template],
-                          ["Amount", `₱${selected.amount}`],
+                          ["Amount", `₱${selected.amount} (~$${selected.amountUsd.toFixed(2)} USD @ ${selected.exchangeRate})`],
                           ["Method", selected.method.toUpperCase()],
                           ["Ref #", selected.paymentRef || "Not submitted"],
                           ["Submitted", selected.submittedAt],

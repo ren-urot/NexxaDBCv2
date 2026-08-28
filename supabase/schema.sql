@@ -1,9 +1,6 @@
 -- Run this once in the Supabase SQL Editor (Project > SQL Editor > New query).
---
--- Uses a dedicated "nexora_orders" table (not "orders") because this Supabase
--- project already has a different, live "orders" table belonging to another
--- app (draft_id/session_id/payment_method schema) — this keeps Nexora fully
--- separate from it.
+-- Safe to re-run any number of times — drops and recreates policies so it
+-- always ends in the same correct state, regardless of what's already there.
 
 create table if not exists nexora_orders (
   id bigint generated always as identity primary key,
@@ -12,7 +9,9 @@ create table if not exists nexora_orders (
   email text not null,
   template text not null,
   amount integer not null,
-  method text not null check (method in ('gcash', 'bank')),
+  amount_usd numeric not null default 0,
+  exchange_rate numeric not null default 0,
+  method text not null check (method in ('gcash', 'bank', 'wise')),
   payment_ref text not null default '',
   notes text not null default '',
   status text not null default 'pending'
@@ -22,7 +21,22 @@ create table if not exists nexora_orders (
   created_at timestamptz not null default now()
 );
 
+-- The table already exists in production from an earlier version of this
+-- script, so the create-table block above is a no-op there. These migrate
+-- an existing table forward: add the USD display columns (PHP stays the
+-- authoritative amount) and widen method to allow the new Wise option.
+alter table nexora_orders add column if not exists amount_usd numeric not null default 0;
+alter table nexora_orders add column if not exists exchange_rate numeric not null default 0;
+alter table nexora_orders drop constraint if exists nexora_orders_method_check;
+alter table nexora_orders add constraint nexora_orders_method_check check (method in ('gcash', 'bank', 'wise'));
+
 alter table nexora_orders enable row level security;
+
+drop policy if exists "public_select_nexora_orders" on nexora_orders;
+drop policy if exists "public_insert_nexora_orders" on nexora_orders;
+drop policy if exists "public_update_nexora_orders" on nexora_orders;
+drop policy if exists "authenticated_select_nexora_orders" on nexora_orders;
+drop policy if exists "authenticated_update_nexora_orders" on nexora_orders;
 
 -- Customers submitting a card order have no login — the Builder's payment
 -- step must be able to insert a new order anonymously. This is the ONLY
@@ -30,9 +44,18 @@ alter table nexora_orders enable row level security;
 create policy "public_insert_nexora_orders" on nexora_orders for insert to anon with check (true);
 
 -- Reading and updating orders (the whole Admin dashboard) requires a signed-in
--- Supabase Auth user. Create that admin account yourself in the Supabase
--- Dashboard: Authentication > Users > Add user (email + password), since
--- creating auth users requires the service_role key, which never belongs in
--- this client-side app.
+-- Supabase Auth user.
 create policy "authenticated_select_nexora_orders" on nexora_orders for select to authenticated using (true);
 create policy "authenticated_update_nexora_orders" on nexora_orders for update to authenticated using (true) with check (true);
+
+-- Lets the Admin dashboard subscribe to live order inserts (for the new-order
+-- alert/notification) instead of polling. Safe to re-run.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'nexora_orders'
+  ) then
+    alter publication supabase_realtime add table nexora_orders;
+  end if;
+end $$;

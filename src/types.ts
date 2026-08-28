@@ -52,7 +52,9 @@ export interface Order {
   email: string;
   template: CardTheme;
   amount: number;
-  method: "gcash" | "bank";
+  amountUsd: number;
+  exchangeRate: number;
+  method: "gcash" | "bank" | "wise";
   paymentRef: string;
   status: PaymentStatus;
   submittedAt: string;

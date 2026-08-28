@@ -21,6 +21,7 @@ import html2canvas from "html2canvas-pro";
 import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
 import jsPDF from "jspdf";
+import { formatUsd, phpToUsd, PHP_PER_USD } from "../lib/currency";
 
 const EMPTY_CARD: CardData = {
   template: "corporate",
@@ -140,7 +141,7 @@ export default function Builder() {
 
   const [step, setStep] = useState<BuilderStep>("template");
   const [card, setCard] = useState<CardData>({ ...EMPTY_CARD, template: plan.templates[0] });
-  const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank">("gcash");
+  const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank" | "wise">("gcash");
   const [paymentRef, setPaymentRef] = useState("");
   const [proofNote, setProofNote] = useState("");
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -622,15 +623,18 @@ export default function Builder() {
                   <div className="text-xs text-[var(--color-muted-fg)] tracking-wide">Digital Business Card + Holder</div>
                   <div className="text-sm font-medium text-[var(--color-foreground)] mt-0.5">{plan.name} plan · One-time purchase</div>
                 </div>
-                <div className="text-2xl font-light text-[var(--color-foreground)]">
-                  ₱{plan.price}
+                <div className="text-right">
+                  <div className="text-2xl font-light text-[var(--color-foreground)]">
+                    ₱{plan.price}
+                  </div>
+                  <div className="text-[10px] text-[var(--color-muted-fg)]">≈ ${formatUsd(plan.price)} USD</div>
                 </div>
               </div>
 
               {/* Method selection */}
               <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Payment Method</div>
-              <div className="grid grid-cols-2 gap-3 mb-8">
-                {(["gcash", "bank"] as const).map((m) => (
+              <div className="grid grid-cols-3 gap-3 mb-8">
+                {(["gcash", "bank", "wise"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setPaymentMethod(m)}
@@ -640,23 +644,43 @@ export default function Builder() {
                         : "border-[var(--color-border)] text-[var(--color-muted-fg)] hover:border-[var(--color-foreground)]"
                     }`}
                   >
-                    {m === "gcash" ? "GCash" : "Bank Transfer"}
+                    {m === "gcash" ? "GCash" : m === "bank" ? "Bank Transfer" : "Wise (USD)"}
                   </button>
                 ))}
               </div>
 
-              {/* Payment QR */}
-              <div className="border border-[var(--color-border)] p-8 flex flex-col items-center gap-4 mb-8">
-                <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
-                  Scan with GCash, Maya, or your banking app
+              {paymentMethod === "wise" ? (
+                /* Dummy Wise (USD) flow — no live payment provider wired up yet.
+                   PHP stays the authoritative charge; USD is display-only. */
+                <div className="border border-[var(--color-border)] p-8 flex flex-col items-center gap-4 mb-8">
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
+                    Pay via Wise
+                  </div>
+                  <div className="text-3xl font-light text-[var(--color-foreground)]">${formatUsd(plan.price)} <span className="text-sm text-[var(--color-muted-fg)]">USD</span></div>
+                  <div className="text-xs text-[var(--color-muted-fg)]">≈ ₱{plan.price}.00 PHP</div>
+                  <div className="w-full border border-dashed border-[var(--color-border)] px-5 py-4 text-xs text-[var(--color-muted-fg)] text-center">
+                    Send to: <span className="text-[var(--color-foreground)] font-medium">payments@nexxadbc.com</span> (Wise)
+                    <br />
+                    Include your name as the payment reference.
+                  </div>
+                  <div className="w-full text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-4 py-3">
+                    Dummy setup — Wise isn't connected yet, so this payment can't be verified automatically. An admin will confirm it manually after you submit your reference below.
+                  </div>
                 </div>
-                <img
-                  src={plan.price === 199 ? qr199 : qr499}
-                  alt={`InstaPay QR code for ₱${plan.price} payment`}
-                  className="w-44 h-44 object-contain border border-[var(--color-border)]"
-                />
-                <div className="text-lg font-light text-[var(--color-foreground)]">₱{plan.price}.00</div>
-              </div>
+              ) : (
+                /* Payment QR */
+                <div className="border border-[var(--color-border)] p-8 flex flex-col items-center gap-4 mb-8">
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
+                    Scan with GCash, Maya, or your banking app
+                  </div>
+                  <img
+                    src={plan.price === 199 ? qr199 : qr499}
+                    alt={`InstaPay QR code for ₱${plan.price} payment`}
+                    className="w-44 h-44 object-contain border border-[var(--color-border)]"
+                  />
+                  <div className="text-lg font-light text-[var(--color-foreground)]">₱{plan.price}.00</div>
+                </div>
+              )}
 
               {/* Proof submission */}
               <div className="space-y-4">
@@ -695,6 +719,8 @@ export default function Builder() {
                         email: card.email,
                         template: card.template,
                         amount: plan.price,
+                        amount_usd: phpToUsd(plan.price),
+                        exchange_rate: PHP_PER_USD,
                         method: paymentMethod,
                         payment_ref: paymentRef,
                         notes: proofNote,

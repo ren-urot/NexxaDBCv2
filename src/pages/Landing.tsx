@@ -9,6 +9,7 @@ import iconScanBarcode from "../assets/icon-scan-barcode.svg";
 import iconRepeat from "../assets/icon-repeat.svg";
 import iconCheck from "../assets/icon-check.svg";
 import iconPeso from "../assets/icon-peso.svg";
+import { formatUsd } from "../lib/currency";
 
 const STEPS = [
   { num: "01", label: "Create", icon: iconCaptions, body: "Select a template and enter your business information." },
@@ -52,9 +53,17 @@ const PLANS = [
 
 function Price({ value }: { value: number }) {
   return (
-    <div className="flex items-end justify-center gap-1">
-      <img src={iconPeso} alt="" className="w-6 h-6 mb-3" />
-      <span className="text-[52px] font-semibold tracking-tight text-[var(--color-foreground)] leading-none">{value}</span>
+    <div className="text-center">
+      <div className="flex items-end justify-center gap-1">
+        <span className="text-[44px] font-semibold tracking-tight text-[var(--color-foreground)] leading-none">
+          ${formatUsd(value)}
+        </span>
+        <span className="text-sm text-[var(--color-muted-fg)] mb-2">USD</span>
+      </div>
+      <div className="flex items-center justify-center gap-1 mt-1.5">
+        <img src={iconPeso} alt="" className="w-3.5 h-3.5" />
+        <span className="text-sm text-[var(--color-muted-fg)]">{value} PHP</span>
+      </div>
     </div>
   );
 }

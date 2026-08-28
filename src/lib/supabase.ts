@@ -46,7 +46,9 @@ export interface OrderRow {
   email: string;
   template: CardTheme;
   amount: number;
-  method: "gcash" | "bank";
+  amount_usd: number;
+  exchange_rate: number;
+  method: "gcash" | "bank" | "wise";
   payment_ref: string;
   notes: string;
   status: PaymentStatus;
@@ -60,7 +62,9 @@ export interface NewOrder {
   email: string;
   template: CardTheme;
   amount: number;
-  method: "gcash" | "bank";
+  amount_usd: number;
+  exchange_rate: number;
+  method: "gcash" | "bank" | "wise";
   payment_ref: string;
   notes: string;
   card: CardData;
@@ -88,4 +92,19 @@ export async function updateOrderStatus(id: number, status: PaymentStatus): Prom
   if (!supabase) throw new Error("Supabase is not configured");
   const { error } = await supabase.from("nexora_orders").update({ status }).eq("id", id);
   if (error) throw error;
+}
+
+export function subscribeToNewOrders(onInsert: (row: OrderRow) => void): () => void {
+  if (!supabase) return () => {};
+  const channel = supabase
+    .channel("nexora_orders_inserts")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "nexora_orders" },
+      (payload) => onInsert(payload.new as OrderRow)
+    )
+    .subscribe();
+  return () => {
+    supabase!.removeChannel(channel);
+  };
 }
