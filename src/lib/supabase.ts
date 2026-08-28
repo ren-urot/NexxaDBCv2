@@ -77,15 +77,13 @@ export async function fetchOrders(): Promise<OrderRow[]> {
   return data as OrderRow[];
 }
 
-export async function createOrder(order: NewOrder): Promise<OrderRow> {
+export async function createOrder(order: NewOrder): Promise<void> {
   if (!supabase) throw new Error("Supabase is not configured");
-  const { data, error } = await supabase
-    .from("nexora_orders")
-    .insert({ ...order, status: "submitted" })
-    .select()
-    .single();
+  // No .select() here: anon can only INSERT (no SELECT policy), and asking
+  // PostgREST to return the inserted row forces a row-visibility check that
+  // fails RLS even though the insert itself is allowed.
+  const { error } = await supabase.from("nexora_orders").insert({ ...order, status: "submitted" });
   if (error) throw error;
-  return data as OrderRow;
 }
 
 export async function updateOrderStatus(id: number, status: PaymentStatus): Promise<void> {
