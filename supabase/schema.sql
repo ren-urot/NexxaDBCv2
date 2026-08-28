@@ -38,10 +38,14 @@ drop policy if exists "public_update_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_select_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_update_nexora_orders" on nexora_orders;
 
--- Customers submitting a card order have no login — the Builder's payment
--- step must be able to insert a new order anonymously. This is the ONLY
--- thing the public (anon) role can do: create new rows, and nothing else.
-create policy "public_insert_nexora_orders" on nexora_orders for insert to anon with check (true);
+-- Customers submitting a card order usually have no login, so anon must be
+-- able to insert. authenticated is included too: if the same browser is
+-- signed into /admin, supabase-js sends every request (including from the
+-- public Builder page) using that logged-in session instead of the anon
+-- key, and without this the insert would be rejected for admins testing
+-- the flow themselves. This is still the ONLY thing either role can do via
+-- this policy: create new rows, nothing else.
+create policy "public_insert_nexora_orders" on nexora_orders for insert to anon, authenticated with check (true);
 
 -- Reading and updating orders (the whole Admin dashboard) requires a signed-in
 -- Supabase Auth user.
