@@ -122,7 +122,7 @@ export async function deleteOrder(id: number): Promise<void> {
   // caught here instead of silently reporting success to the caller.
   const { error, count } = await supabase.from("nexora_orders").delete({ count: "exact" }).eq("id", id);
   if (error) throw error;
-  if (!count) throw new Error("Delete did not affect any rows — check the delete policy on nexora_orders.");
+  if (!count) throw new Error("Delete did not affect any rows. Check the delete policy on nexora_orders.");
 }
 
 export interface OrderStatusLookup {

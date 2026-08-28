@@ -763,7 +763,7 @@ export default function Builder() {
                     Include your name as the payment reference.
                   </div>
                   <div className="w-full text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-4 py-3">
-                    Dummy setup — Wise isn't connected yet, so this payment can't be verified automatically. An admin will confirm it manually after you submit your reference below.
+                    Dummy setup: Wise isn't connected yet, so this payment can't be verified automatically. An admin will confirm it manually after you submit your reference below.
                   </div>
                 </div>
               ) : (
@@ -790,7 +790,7 @@ export default function Builder() {
 
               {!supabaseConfigured && (
                 <div className="mt-6 text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-4 py-3">
-                  Backend not configured — this submission will only advance locally and won't create a real order.
+                  Backend not configured, this submission will only advance locally and won't create a real order.
                 </div>
               )}
               {submitError && (
@@ -916,7 +916,7 @@ export default function Builder() {
                 </div>
                 <p className="text-[10px] text-[var(--color-muted-fg)] leading-relaxed">
                   Scan this QR to open your digital business card. Once your payment is verified, it'll show your
-                  full card — share it with anyone.
+                  full card, share it with anyone.
                 </p>
               </div>
 

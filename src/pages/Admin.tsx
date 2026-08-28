@@ -268,7 +268,7 @@ function AdminDashboard() {
       onInsert: (row) => {
         const order = toAdminOrder(row);
         setOrders((os) => (os.some((o) => o.rowId === order.rowId) ? os : [order, ...os]));
-        pushActivity(`🔔 New order submitted for approval — ${order.customer} · ${order.id} · ₱${order.amount}`);
+        pushActivity(`🔔 New order submitted for approval: ${order.customer} · ${order.id} · ₱${order.amount}`);
         notify("New order submitted", `${order.customer} · ${order.id} · ₱${order.amount}`);
       },
       onUpdate: (row) => {
@@ -435,7 +435,7 @@ function AdminDashboard() {
 
       {!supabaseConfigured && (
         <div className="text-[10px] text-amber-700 bg-amber-50 border-b border-amber-200 px-8 py-2 text-center">
-          Backend not configured — showing no orders. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to connect.
+          Backend not configured, showing no orders. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to connect.
         </div>
       )}
       {loadError && (
