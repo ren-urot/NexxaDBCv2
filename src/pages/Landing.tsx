@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Info } from "lucide-react";
 import Logo from "../components/Logo";
 import heroImage from "../assets/hero-image.webp";
 import heroBg from "../assets/hero-bg.svg";
@@ -31,6 +32,28 @@ const PLANS = [
       "Social Media Links",
       "Works on Any Smart Phone",
     ],
+    details: [
+      {
+        title: "1 Digital Business Card",
+        body: "Create one professional digital business card that you can easily share with clients, customers, and contacts.",
+      },
+      {
+        title: "Custom Profile & Contact Info",
+        body: "Add your name, job title, company, phone number, email, website, and other important contact details.",
+      },
+      {
+        title: "QR Code for Card Sharing",
+        body: "Share your digital business card instantly by letting others scan your unique QR code with their phone.",
+      },
+      {
+        title: "Social Media Links",
+        body: "Connect your social media profiles so contacts can easily find and follow you across your preferred platforms.",
+      },
+      {
+        title: "Works on Any Phone",
+        body: "Your digital business card can be viewed and shared on any smartphone, regardless of the phone brand or operating system.",
+      },
+    ],
   },
   {
     name: "Pro",
@@ -55,6 +78,34 @@ const PLANS = [
     ],
   },
 ];
+
+function PlanInfoTooltip({ items }: { items: { title: string; body: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="absolute top-5 right-5 z-10">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Plan feature details"
+        className="w-6 h-6 rounded-full border border-[var(--color-border)] text-[var(--color-muted-fg)] flex items-center justify-center hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-colors"
+      >
+        <Info size={14} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-8 z-20 w-72 max-w-[80vw] bg-[var(--color-background)] border border-[var(--color-border)] rounded-[14px] shadow-lg p-5 text-left space-y-4">
+            {items.map((it) => (
+              <div key={it.title}>
+                <div className="text-sm font-semibold text-[var(--color-foreground)] mb-1">{it.title}</div>
+                <div className="text-xs text-[var(--color-muted-fg)] leading-relaxed">{it.body}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function Price({ value }: { value: number }) {
   return (
@@ -231,6 +282,7 @@ export default function Landing() {
                     Coming Soon
                   </span>
                 )}
+                {p.details && <PlanInfoTooltip items={p.details} />}
                 <div className="text-center mb-6">
                   <div className="text-2xl font-semibold">{p.name}</div>
                   <div className="text-[var(--color-muted-fg)] mt-1">{p.desc}</div>
