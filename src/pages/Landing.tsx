@@ -51,7 +51,7 @@ const PLANS = [
       "Multiple Team Members (Up to 5 Cards)",
       "Multiple DBC Management",
       "Lead Generation (Downloadable CSV)",
-      "QR Transfer (Cards+Holder Transferable to New Phone)",
+      "QR Transfer (Transfer Cards and Holder to New Phone)",
     ],
   },
 ];
