@@ -63,3 +63,24 @@ begin
     alter publication supabase_realtime add table nexora_orders;
   end if;
 end $$;
+
+-- Lets a customer poll the status of their own order on the Builder's Status
+-- step, without granting anon/authenticated a general SELECT policy on the
+-- table (which would let anyone list every order's name/email/card data).
+-- SECURITY DEFINER bypasses RLS internally, but the function itself only
+-- ever returns two columns for the one row matching both the payment
+-- reference AND the email the customer themselves provided at submission —
+-- there's no way to enumerate other orders through it.
+create or replace function get_order_status(p_payment_ref text, p_email text)
+returns table (status text, order_code text)
+language sql
+security definer
+set search_path = public
+as $$
+  select o.status, o.order_code
+  from nexora_orders o
+  where o.payment_ref = p_payment_ref and o.email = p_email
+  limit 1;
+$$;
+
+grant execute on function get_order_status(text, text) to anon, authenticated;

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Phone,
@@ -12,11 +12,11 @@ import {
   Download,
 } from "lucide-react";
 import { LinkedinIcon, FacebookIcon, InstagramIcon } from "../components/SocialIcons";
-import type { CardData, CardTheme, BuilderStep, BackgroundStyle } from "../types";
+import type { CardData, CardTheme, BuilderStep, BackgroundStyle, PaymentStatus } from "../types";
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
 import { resolvePlan } from "../data/plans";
-import { createOrder, supabaseConfigured, getErrorMessage } from "../lib/supabase";
+import { createOrder, getOrderStatus, supabaseConfigured, getErrorMessage } from "../lib/supabase";
 import html2canvas from "html2canvas-pro";
 import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
@@ -148,10 +148,36 @@ export default function Builder() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<PaymentStatus>("submitted");
   const cardRef = useRef<HTMLDivElement>(null);
 
   const set = (key: keyof CardData) => (val: string) =>
     setCard((c) => ({ ...c, [key]: val }));
+
+  const TERMINAL_STATUSES: PaymentStatus[] = ["approved", "rejected", "provisioned"];
+
+  useEffect(() => {
+    if (step !== "status" || !supabaseConfigured || !paymentRef || !card.email) return;
+    if (TERMINAL_STATUSES.includes(liveStatus)) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const result = await getOrderStatus(paymentRef, card.email);
+        if (!cancelled && result) setLiveStatus(result.status);
+      } catch {
+        // Silently retry on the next tick — a transient network hiccup
+        // shouldn't interrupt the customer's view of the status page.
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, paymentRef, card.email, liveStatus]);
 
   const touchField = (key: string) => setTouched((t) => new Set(t).add(key));
   const touchAll = (keys: string[]) => setTouched((t) => new Set([...t, ...keys]));
@@ -745,26 +771,35 @@ export default function Builder() {
           {step === "status" && (
             <div className="max-w-xl mx-auto px-8 py-12 text-center">
               <div className="inline-flex items-center gap-2 border border-[var(--color-border)] px-4 py-2 text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-10">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                Payment Submitted
+                <div className={`w-1.5 h-1.5 rounded-full ${liveStatus === "rejected" ? "bg-red-500" : "bg-amber-400 animate-pulse"}`} />
+                {liveStatus === "rejected" ? "Payment Rejected" : "Payment Submitted"}
               </div>
 
               <h2 className="text-3xl tracking-tight text-[var(--color-foreground)] mb-4">
-                We're verifying your payment
+                {liveStatus === "rejected"
+                  ? "We couldn't verify your payment"
+                  : liveStatus === "approved" || liveStatus === "provisioned"
+                  ? "Your payment is verified"
+                  : "We're verifying your payment"}
               </h2>
               <p className="text-sm text-[var(--color-muted-fg)] leading-relaxed mb-12 max-w-sm mx-auto">
-                Your payment reference has been received. Once verified, your Digital Business Card + Holder
-                provisioning QR will be sent to you.
+                {liveStatus === "rejected"
+                  ? "Please contact support with your payment reference so we can help resolve this."
+                  : "Your payment reference has been received. Once verified, your Digital Business Card + Holder provisioning QR will be sent to you. This page updates automatically."}
               </p>
 
               {/* Status timeline */}
               <div className="border border-[var(--color-border)] text-left divide-y divide-[var(--color-border)] mb-10">
-                {[
-                  { label: "Payment Submitted", done: true, active: false },
-                  { label: "Under Verification", done: false, active: true },
-                  { label: "Approved", done: false, active: false },
-                  { label: "Provisioning QR Ready", done: false, active: false },
-                ].map((s, i) => (
+                {(() => {
+                  const order: PaymentStatus[] = ["submitted", "under_verification", "approved", "provisioned"];
+                  const currentIndex = order.indexOf(liveStatus);
+                  const labels = ["Payment Submitted", "Under Verification", "Approved", "Provisioning QR Ready"];
+                  return labels.map((label, i) => ({
+                    label,
+                    done: liveStatus !== "rejected" && i < currentIndex,
+                    active: liveStatus !== "rejected" && i === currentIndex,
+                  }));
+                })().map((s, i) => (
                   <div key={i} className="flex items-center gap-4 px-5 py-4">
                     <div
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${
@@ -827,7 +862,7 @@ export default function Builder() {
                     Your Card
                   </div>
                   <div className="flex justify-center mb-6">
-                    <div ref={cardRef} className="inline-block">
+                    <div ref={cardRef} className="inline-block text-left">
                       <BusinessCard data={card} size="lg" />
                     </div>
                   </div>

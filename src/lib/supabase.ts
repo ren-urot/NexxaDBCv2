@@ -102,6 +102,23 @@ export async function updateOrderStatus(id: number, status: PaymentStatus): Prom
   if (error) throw error;
 }
 
+export interface OrderStatusLookup {
+  status: PaymentStatus;
+  order_code: string;
+}
+
+// Lets a customer poll their own order's status without a general SELECT
+// policy: this calls a SECURITY DEFINER function that only returns a match
+// for the exact payment_ref + email pair the customer themselves submitted.
+export async function getOrderStatus(paymentRef: string, email: string): Promise<OrderStatusLookup | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .rpc("get_order_status", { p_payment_ref: paymentRef, p_email: email })
+    .maybeSingle();
+  if (error) throw error;
+  return data as OrderStatusLookup | null;
+}
+
 export function subscribeToNewOrders(onInsert: (row: OrderRow) => void): () => void {
   if (!supabase) return () => {};
   const channel = supabase
