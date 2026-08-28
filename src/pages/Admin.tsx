@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import type { Order, PaymentStatus } from "../types";
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
 import {
   fetchOrders,
   updateOrderStatus,
+  deleteOrder,
   supabaseConfigured,
   getErrorMessage,
   signIn,
@@ -227,6 +229,22 @@ function AdminDashboard() {
     }
   };
 
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const handleDeleteOrder = async (order: AdminOrder) => {
+    if (!confirm(`Delete order ${order.id} (${order.customer})? This can't be undone.`)) return;
+    setDeletingId(order.rowId);
+    try {
+      await deleteOrder(order.rowId);
+      setOrders((os) => os.filter((o) => o.rowId !== order.rowId));
+      if (selected?.rowId === order.rowId) setSelected(null);
+    } catch (err) {
+      alert(getErrorMessage(err, "Failed to delete order."));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const counts = {
     total: orders.length,
     pending: orders.filter((o) => o.status === "submitted" || o.status === "under_verification").length,
@@ -370,29 +388,39 @@ function AdminDashboard() {
                   </h2>
                   <div className="border border-[var(--color-border)] overflow-x-auto">
                     <div className="min-w-[640px] divide-y divide-[var(--color-border)]">
-                      <div className="grid grid-cols-6 px-5 py-2 text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] bg-[var(--color-muted)]">
+                      <div className="grid grid-cols-[repeat(6,1fr)_auto] px-5 py-2 text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] bg-[var(--color-muted)]">
                         <span>Order</span>
                         <span>Customer</span>
                         <span>Template</span>
                         <span>Method</span>
                         <span>Amount</span>
                         <span>Status</span>
+                        <span className="w-7" />
                       </div>
                       {orders.map((o) => (
-                        <button
-                          key={o.rowId}
-                          onClick={() => setSelected(o)}
-                          className="w-full grid grid-cols-6 px-5 py-4 text-xs text-left hover:bg-[var(--color-muted)] transition-colors"
-                        >
-                          <span className="font-mono text-[var(--color-muted-fg)]">{o.id}</span>
-                          <span className="text-[var(--color-foreground)] font-medium">{o.customer}</span>
-                          <span className="capitalize text-[var(--color-muted-fg)]">{o.template}</span>
-                          <span className="uppercase text-[var(--color-muted-fg)]">{o.method}</span>
-                          <span className="text-[var(--color-foreground)]">₱{o.amount}</span>
-                          <span className={`text-[10px] border px-2 py-0.5 w-fit ${STATUS_COLORS[o.status]}`}>
-                            {STATUS_LABELS[o.status]}
-                          </span>
-                        </button>
+                        <div key={o.rowId} className="w-full grid grid-cols-[repeat(6,1fr)_auto] items-center hover:bg-[var(--color-muted)] transition-colors">
+                          <button
+                            onClick={() => setSelected(o)}
+                            className="col-span-6 grid grid-cols-6 px-5 py-4 text-xs text-left"
+                          >
+                            <span className="font-mono text-[var(--color-muted-fg)]">{o.id}</span>
+                            <span className="text-[var(--color-foreground)] font-medium">{o.customer}</span>
+                            <span className="capitalize text-[var(--color-muted-fg)]">{o.template}</span>
+                            <span className="uppercase text-[var(--color-muted-fg)]">{o.method}</span>
+                            <span className="text-[var(--color-foreground)]">₱{o.amount}</span>
+                            <span className={`text-[10px] border px-2 py-0.5 w-fit ${STATUS_COLORS[o.status]}`}>
+                              {STATUS_LABELS[o.status]}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOrder(o)}
+                            disabled={deletingId === o.rowId}
+                            className="w-7 h-7 mr-4 flex items-center justify-center text-[var(--color-muted-fg)] hover:text-red-500 transition-colors disabled:opacity-40"
+                            title="Delete order"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       ))}
                       {orders.length === 0 && (
                         <div className="px-5 py-8 text-[10px] text-[var(--color-muted-fg)]">No orders yet.</div>
@@ -489,6 +517,14 @@ function AdminDashboard() {
                           {selected.status === "pending" && "Awaiting customer payment"}
                         </div>
                       )}
+
+                      <button
+                        onClick={() => handleDeleteOrder(selected)}
+                        disabled={deletingId === selected.rowId}
+                        className="w-full mt-2 flex items-center justify-center gap-1.5 text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] py-2.5 hover:text-red-500 transition-colors disabled:opacity-40"
+                      >
+                        <Trash2 size={12} /> Delete Order
+                      </button>
                     </div>
                   )}
                 </div>

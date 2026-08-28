@@ -37,6 +37,7 @@ drop policy if exists "public_insert_nexora_orders" on nexora_orders;
 drop policy if exists "public_update_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_select_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_update_nexora_orders" on nexora_orders;
+drop policy if exists "authenticated_delete_nexora_orders" on nexora_orders;
 
 -- Customers submitting a card order usually have no login, so anon must be
 -- able to insert. authenticated is included too: if the same browser is
@@ -47,10 +48,11 @@ drop policy if exists "authenticated_update_nexora_orders" on nexora_orders;
 -- this policy: create new rows, nothing else.
 create policy "public_insert_nexora_orders" on nexora_orders for insert to anon, authenticated with check (true);
 
--- Reading and updating orders (the whole Admin dashboard) requires a signed-in
--- Supabase Auth user.
+-- Reading, updating, and deleting orders (the whole Admin dashboard)
+-- requires a signed-in Supabase Auth user.
 create policy "authenticated_select_nexora_orders" on nexora_orders for select to authenticated using (true);
 create policy "authenticated_update_nexora_orders" on nexora_orders for update to authenticated using (true) with check (true);
+create policy "authenticated_delete_nexora_orders" on nexora_orders for delete to authenticated using (true);
 
 -- Lets the Admin dashboard subscribe to live order inserts (for the new-order
 -- alert/notification) instead of polling. Safe to re-run.

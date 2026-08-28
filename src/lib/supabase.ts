@@ -115,6 +115,12 @@ export async function updateOrderStatus(id: number, status: PaymentStatus): Prom
   if (error) throw error;
 }
 
+export async function deleteOrder(id: number): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.from("nexora_orders").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export interface OrderStatusLookup {
   status: PaymentStatus;
   order_code: string;
