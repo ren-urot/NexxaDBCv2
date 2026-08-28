@@ -8,6 +8,7 @@ import holderOpenCase1 from "../assets/holder-open-case-1.png";
 import holderOpenCase2 from "../assets/holder-open-case-2.png";
 import holderOpenCase3 from "../assets/holder-open-case-3.png";
 import holderOpenCase4 from "../assets/holder-open-case-4.png";
+import holderOpenCase5 from "../assets/holder-open-case-5.png";
 import QRCode from "qrcode";
 import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
@@ -395,6 +396,8 @@ export default function Holder() {
       ? holderOpenCase3
       : filtered.length === 4
       ? holderOpenCase4
+      : filtered.length === 5
+      ? holderOpenCase5
       : holderOpenCase;
 
   // Reached fresh via the provisioning QR/link (no in-app navigation state):
