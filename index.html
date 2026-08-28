@@ -12,6 +12,57 @@
     <meta name="apple-mobile-web-app-title" content="NexxaDBC" />
     <title>NexxaDBC</title>
     <script>
+      // The built manifest.webmanifest is one static file shared by every
+      // route, with start_url "/" — so installing from a customer's own
+      // card page (/holder/:orderCode) still launched the installed app at
+      // the Landing page, not their card. On that route, swap the
+      // <link rel="manifest"> to a blob URL manifest whose start_url is
+      // this exact page, before Chrome ever evaluates installability. The
+      // manifest link is appended by the build tooling after this script
+      // runs, so a MutationObserver (not a direct query) catches it the
+      // moment it lands, however that timing shakes out across builds.
+      (function () {
+        var match = location.pathname.match(/^\/holder\/[\w-]+$/);
+        if (!match) return;
+        // Fully-qualified absolute URLs, not root-relative paths — a
+        // manifest served from a blob: URL doesn't resolve "/x" against
+        // the page's own origin the way a normally-hosted manifest does,
+        // and Chrome silently drops any field it can't resolve.
+        var origin = location.origin;
+        function swap(link) {
+          var manifest = {
+            name: "NexxaDBC",
+            short_name: "NexxaDBC",
+            description: "Your digital business card, always in your pocket.",
+            theme_color: "#ff4e00",
+            background_color: "#ffffff",
+            display: "standalone",
+            scope: origin + "/",
+            start_url: origin + location.pathname,
+            icons: [
+              { src: origin + "/icon-192.png", sizes: "192x192", type: "image/png" },
+              { src: origin + "/icon-512.png", sizes: "512x512", type: "image/png" },
+              { src: origin + "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+            ]
+          };
+          var blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+          link.setAttribute("href", URL.createObjectURL(blob));
+        }
+        var existing = document.querySelector('link[rel="manifest"]');
+        if (existing) {
+          swap(existing);
+          return;
+        }
+        var observer = new MutationObserver(function () {
+          var link = document.querySelector('link[rel="manifest"]');
+          if (link) {
+            swap(link);
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+
       // Capture beforeinstallprompt as early as possible — before any React
       // module even loads — since it can fire within the first moments of
       // page load and Chrome discards it if nothing calls preventDefault()

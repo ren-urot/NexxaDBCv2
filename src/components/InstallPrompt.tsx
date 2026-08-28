@@ -24,44 +24,63 @@ function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
-// No browser allows a silent, zero-interaction install — that's a
-// deliberate security boundary on every platform, not something an app can
-// opt out of. This gets as close as the platform allows: on Android/Chrome
-// it fires the native install dialog itself the moment the page is ready
-// (no extra tap on our own UI first), and on iOS — which has no install API
-// at all — it shows the "Add to Home Screen" instructions immediately
-// instead of hiding them behind a click.
+// No browser allows a silent, zero-interaction install (a deliberate
+// security boundary everywhere), and Chrome adds a second layer on top of
+// that: it only fires beforeinstallprompt — the event a one-tap native
+// install dialog depends on — once its own engagement heuristics are
+// satisfied, which a first-ever visit usually doesn't meet. That event not
+// firing isn't a bug to work around; it's Chrome's call, not the page's.
+// What IS this page's job is to never go silent about it: always show a
+// real, visible "Install" affordance, upgrading itself to the one-tap
+// native flow the moment (if ever) Chrome makes that available, and
+// otherwise pointing at the manual path (⋮ menu → Install app / iOS Share
+// sheet) that always works regardless of the heuristic.
 export default function InstallPrompt({ dark = false }: { dark?: boolean }) {
   const [dismissed, setDismissed] = useState(false);
-  const [showIosHelp, setShowIosHelp] = useState(false);
   const [standalone, setStandalone] = useState(false);
+  const [deferredEvent, setDeferredEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [autoFired, setAutoFired] = useState(false);
+  const [showManualHelp, setShowManualHelp] = useState(false);
+  const ios = isIos();
 
   useEffect(() => {
     setStandalone(isStandaloneDisplay());
-    if (isIos()) {
-      setShowIosHelp(true);
-      return;
-    }
-    const fire = (installEvent: BeforeInstallPromptEvent) => {
-      installEvent.prompt();
-      window.__deferredInstallPrompt = undefined;
-    };
-    // The event may have already fired (and been captured by index.html's
-    // inline script) before this component ever mounted — e.g. while an
-    // async card fetch was still in flight. Use it immediately if so.
+    if (ios) return;
     if (window.__deferredInstallPrompt) {
-      fire(window.__deferredInstallPrompt);
+      setDeferredEvent(window.__deferredInstallPrompt);
       return;
     }
     const onPrompt = (e: Event) => {
       e.preventDefault();
-      fire(e as BeforeInstallPromptEvent);
+      setDeferredEvent(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (standalone || dismissed || !showIosHelp) return null;
+  // Auto-fire the real native dialog the instant it's available, whether
+  // that's on mount or minutes later — no extra tap needed when Chrome
+  // actually cooperates.
+  useEffect(() => {
+    if (!deferredEvent || autoFired) return;
+    setAutoFired(true);
+    deferredEvent.prompt();
+    window.__deferredInstallPrompt = undefined;
+  }, [deferredEvent, autoFired]);
+
+  if (standalone || dismissed) return null;
+
+  const handleClick = () => {
+    if (deferredEvent) {
+      deferredEvent.prompt();
+      window.__deferredInstallPrompt = undefined;
+      return;
+    }
+    // Chrome hasn't (or won't, this visit) offer the one-tap path — the
+    // manual route always works regardless.
+    setShowManualHelp(true);
+  };
 
   return (
     <div
@@ -72,9 +91,15 @@ export default function InstallPrompt({ dark = false }: { dark?: boolean }) {
       }`}
     >
       <Download size={13} className="shrink-0" />
-      <span className="normal-case tracking-normal flex-1">
-        Tap the Share icon, then "Add to Home Screen".
-      </span>
+      {showManualHelp ? (
+        <span className="flex-1 normal-case tracking-normal">
+          {ios ? 'Tap the Share icon, then "Add to Home Screen".' : 'Tap the ⋮ menu (top right), then "Install app".'}
+        </span>
+      ) : (
+        <button onClick={handleClick} className="flex-1 text-left normal-case tracking-normal hover:opacity-70 transition-opacity">
+          {ios ? 'Install this app: tap Share, then "Add to Home Screen"' : "Install this app on your phone"}
+        </button>
+      )}
       <button onClick={() => setDismissed(true)} className="shrink-0 hover:opacity-70 transition-opacity">
         <X size={13} />
       </button>
