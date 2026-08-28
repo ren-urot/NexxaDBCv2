@@ -27,9 +27,8 @@ const PLANS = [
     features: [
       "Create 1 Digital Business Card",
       "Custom Profile & Contact Info",
-      "QR Code & Shareable Link",
+      "QR Code for Card Sharing",
       "Social Media Links",
-      "Save to Contacts",
       "Works on Any Device",
     ],
   },
@@ -39,7 +38,7 @@ const PLANS = [
     price: 499,
     cta: "solid" as const,
     popular: true,
-    features: ["Everything in Basic", "Custom Themes & Templates", "Add Your Logo", "Whatsapp & Direct Call Buttons"],
+    features: ["Everything in Basic", "Custom Themes & Templates", "Add Your Logo", "Whatsapp Direct Call"],
   },
   {
     name: "Business",
@@ -47,7 +46,7 @@ const PLANS = [
     price: 899,
     cta: "outline" as const,
     active: false,
-    features: ["Everything in Pro", "Multiple Team Members", "Multiple DBC Management", "Export Contacts"],
+    features: ["Everything in Pro", "Multiple Team Members (Up to 5 cards)", "Multiple DBC Management", "Lead Generation (downloadable CSV)"],
   },
 ];
 
