@@ -476,7 +476,7 @@ export default function Holder() {
               onClick={() => setHolderOpen(true)}
               className="flex-1 flex flex-col items-center justify-center px-1 py-10 w-full"
             >
-              <div style={{ transform: "translateY(-35px)" }} className="flex flex-col items-center">
+              <div style={{ transform: "translateY(-60px)" }} className="flex flex-col items-center">
                 <img src={holderEmpty} alt="Tap to open your card holder" className="w-[341px] h-auto mb-6" />
                 <div className="text-white/50 text-xs text-center">Tap to open your card holder</div>
               </div>
@@ -562,7 +562,7 @@ export default function Holder() {
     return (
       <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col" style={{ fontFamily: "var(--font-sans)" }}>
         <InstallPrompt dark />
-        <div className="flex-1 overflow-y-auto">{content}</div>
+        <div className="flex-1">{content}</div>
         <button
           onClick={() => navigate("/")}
           className="text-[9px] tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors py-3 text-center"
@@ -604,7 +604,7 @@ export default function Holder() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">{content}</div>
+        <div className="flex-1">{content}</div>
       </div>
     </div>
   );
