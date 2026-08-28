@@ -156,8 +156,11 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
         }}
       >
         <BusinessCard data={data} size="lg" />
+        {/* Centered on the card's vertical axis here (unrotated space) so it
+            lands horizontally centered once the card is rotated 90°, clear
+            of the website line instead of overlapping it. */}
         {qrDataUrl && (
-          <div className="absolute bottom-2 right-2 bg-white rounded-md p-1 shadow-lg border border-gray-100">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100">
             <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
           </div>
         )}
