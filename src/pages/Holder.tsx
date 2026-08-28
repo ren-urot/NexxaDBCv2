@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Menu, IdCard, ScanLine } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
-import holderOpenCase from "../assets/holder-open-case.webp";
 import holderOpenCase1 from "../assets/holder-open-case-1.png";
 import holderOpenCase2 from "../assets/holder-open-case-2.png";
 import holderOpenCase3 from "../assets/holder-open-case-3.png";
 import holderOpenCase4 from "../assets/holder-open-case-4.png";
 import holderOpenCase5 from "../assets/holder-open-case-5.png";
+import holderOpenCaseMore from "../assets/holder-open-case-more.png";
 import QRCode from "qrcode";
 import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
@@ -131,7 +131,7 @@ type Tab = "my-card" | "my-cards";
 
 const OPEN_CASE_W = 330;
 
-// Positioned to align with each stacked card's visible strip in holder-open-case.webp
+// Positioned to align with each stacked card's visible strip in holder-open-case-5.png
 const CARD_SLOTS: { top: number; left: number; light?: boolean }[] = [
   { top: 19, left: 19, light: true },
   { top: 31.7, left: 19 },
@@ -270,6 +270,7 @@ export default function Holder() {
   const [tab, setTab] = useState<Tab>(params.orderCode ? "my-card" : "my-cards");
   const [holderOpen, setHolderOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [holderPage, setHolderPage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<SavedCard | null>(null);
   const hasRealCard = Boolean(navState?.card || scannedCard);
   const [collectedCards, setCollectedCards] = useState<SavedCard[]>(() => loadCollectedCards());
@@ -398,7 +399,11 @@ export default function Holder() {
       ? holderOpenCase4
       : filtered.length === 5
       ? holderOpenCase5
-      : holderOpenCase;
+      : holderOpenCaseMore;
+  const canPage = filtered.length > activeSlots.length;
+  const maxPage = Math.max(0, filtered.length - activeSlots.length);
+  const pageStart = Math.min(holderPage, maxPage);
+  const visibleCards = filtered.slice(pageStart, pageStart + activeSlots.length);
 
   // Reached fresh via the provisioning QR/link (no in-app navigation state):
   // this IS the delivered card + holder, on the customer's own phone, not a
@@ -487,12 +492,22 @@ export default function Holder() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center pb-5">
               <div className="relative mb-3" style={{ width: OPEN_CASE_W, marginTop: 90 }}>
+                {canPage && (
+                  <button
+                    onClick={() => setHolderPage(pageStart - 1)}
+                    disabled={pageStart === 0}
+                    className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/20 transition-colors"
+                    title="Scroll up"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                )}
                 <img
                   src={activeCaseArt}
                   alt="Card holder"
                   className="w-full h-auto"
                 />
-                {filtered.slice(0, activeSlots.length).map((c, i) => {
+                {visibleCards.map((c, i) => {
                   const slot = activeSlots[i];
                   return (
                     <button
@@ -522,6 +537,17 @@ export default function Holder() {
                   style={{ top: 420.65, bottom: 12.35, left: 51.5, width: 227.4 }}
                 />
               </div>
+
+              {canPage && (
+                <button
+                  onClick={() => setHolderPage(pageStart + 1)}
+                  disabled={pageStart >= maxPage}
+                  className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/20 transition-colors"
+                  title="Scroll down"
+                >
+                  <ChevronDown size={16} />
+                </button>
+              )}
 
               {filtered.length === 0 && (
                 <div className="text-[10px] text-white/40 text-center py-4">No cards match your search.</div>
