@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import pwaButton from "../assets/pwa-button.png";
+import pwaButton from "../assets/pwa-button.svg";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
