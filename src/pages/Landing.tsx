@@ -298,7 +298,7 @@ export default function Landing() {
             <ul className="space-y-2.5 text-[var(--color-muted-fg-2)]">
               <li>
                 <button
-                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                  onClick={() => navigate("/about")}
                   className="hover:text-[var(--color-accent)] transition-colors"
                 >
                   About Us
@@ -337,7 +337,7 @@ export default function Landing() {
             )}
           </div>
         </div>
-        <div className="max-w-[1200px] mx-auto border-t border-[var(--color-border-2)] pt-6 text-center text-[var(--color-muted-fg-2)] text-sm">
+        <div className="max-w-[1200px] mx-auto border-t border-[var(--color-border-2)] pt-6 text-center text-[var(--color-muted-fg-2)] text-sm" style={{ transform: "translateY(10px)" }}>
           © 2026 NexxaDBC. All rights reserved.
         </div>
       </footer>
