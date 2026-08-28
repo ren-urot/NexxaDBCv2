@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Phone, Mail, Globe, ChevronLeft, Menu, IdCard } from "lucide-react";
+import { ChevronLeft, Menu, IdCard } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase from "../assets/holder-open-case.webp";
-import dbcRibbon from "../assets/dbc-ribbon.webp";
 import QRCode from "qrcode";
 import Logo from "../components/Logo";
+import BusinessCard from "../components/BusinessCard";
 import { getPublicCard } from "../lib/supabase";
 
 interface SavedCard extends CardData {
@@ -110,26 +110,10 @@ const CARD_SLOTS: { top: number; left: number; light?: boolean }[] = [
   { top: 71.7, left: 19 },
 ];
 
-function QrGrid({ size, cells }: { size: number; cells: number[] }) {
-  return (
-    <div className="grid grid-cols-9 gap-0.5 p-2">
-      {Array.from({ length: size }).map((_, i) => (
-        <div
-          key={i}
-          className={`w-3 h-3 ${cells.includes(i) || (i * 13 + 7) % 5 < 2 ? "bg-black" : "bg-transparent"}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-const QR_ANCHOR_CELLS = [0,1,2,3,4,5,6,9,15,18,24,27,33,36,42,45,46,47,48,49,50,51,54,60,63,69,72,73,74,75,76,77,78,10,11,20,21,30,31,40,41,60,61,70,71];
-
-const CARD_W = 315;
-const CARD_H = 554;
-
-function NexxaDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
-  const name = `${data.firstName} ${data.lastName}`.trim() || "Your Name";
+// Shows the customer's actual card (whichever template/theme they built and
+// paid for) rather than a separate hardcoded "preview" design, plus a real
+// QR when the card has a live order behind it.
+function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,7 +122,7 @@ function NexxaDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
       return;
     }
     let cancelled = false;
-    QRCode.toDataURL(qrUrl, { width: 200, margin: 0 })
+    QRCode.toDataURL(qrUrl, { width: 200, margin: 1 })
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
       })
@@ -151,60 +135,13 @@ function NexxaDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   }, [qrUrl]);
 
   return (
-    <div
-      className="relative mx-auto rounded-2xl bg-white shadow-2xl overflow-hidden"
-      style={{ width: CARD_W, height: CARD_H }}
-    >
-      {/* Vertical orange ribbon (Nexxa | DBC wordmark, exported from Figma) */}
-      <div className="absolute right-0 top-0 bottom-0" style={{ width: "38%" }}>
-        <img src={dbcRibbon} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      </div>
-
-      {/* Rotated identity + contact block */}
-      <div className="absolute left-0 top-0 bottom-0 flex items-center justify-center" style={{ width: "62%" }}>
-        <div className="-rotate-90 flex flex-col justify-between" style={{ width: 428, height: 214 }}>
-          <div>
-            <div className="text-[27px] font-bold text-black leading-tight">{name}</div>
-            <div className="text-[13px] tracking-widest uppercase text-gray-400 mt-1">
-              {data.title || "Job Title"}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 text-[13px] text-gray-500">
-            {data.email && (
-              <a href={`mailto:${data.email}`} className="flex items-center gap-2 hover:underline">
-                <Mail size={13} className="shrink-0" /> {data.email}
-              </a>
-            )}
-            {data.mobile && (
-              <a href={`tel:${data.mobile}`} className="flex items-center gap-2 hover:underline">
-                <Phone size={13} className="shrink-0" /> {data.mobile}
-              </a>
-            )}
-            {data.website && (
-              <a
-                href={`https://${data.website}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 hover:underline"
-              >
-                <Globe size={13} className="shrink-0" /> {data.website}
-              </a>
-            )}
-          </div>
+    <div className="flex flex-col items-center gap-5">
+      <BusinessCard data={data} size="lg" />
+      {qrDataUrl && (
+        <div className="bg-white rounded-md p-2 shadow-lg">
+          <img src={qrDataUrl} alt="Scan to view this card" className="w-24 h-24" />
         </div>
-      </div>
-
-      {/* QR code, kept upright so it stays scannable */}
-      <div
-        className="absolute bottom-8 left-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
-        style={{ transform: "translateX(-50%) scale(1.26)", transformOrigin: "bottom center" }}
-      >
-        {qrDataUrl ? (
-          <img src={qrDataUrl} alt="Scan to view this card" className="w-[98px] h-[98px]" />
-        ) : (
-          <QrGrid size={49} cells={QR_ANCHOR_CELLS} />
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -354,7 +291,7 @@ export default function Holder() {
                 <div className="text-white text-[15px] font-semibold">My Digital Business Card</div>
               </div>
               <div className="flex-1 flex items-center justify-center px-1 py-6">
-                <NexxaDbcCard data={myCard} qrUrl={myCardQrUrl} />
+                <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
               </div>
             </div>
           )}
@@ -453,7 +390,7 @@ export default function Holder() {
 
               {/* Card display */}
               <div className="flex-1 flex items-center justify-center">
-                <NexxaDbcCard data={selectedCard} qrUrl={selectedCard.id === "1" && hasRealCard ? myCardQrUrl : undefined} />
+                <RealDbcCard data={selectedCard} qrUrl={selectedCard.id === "1" && hasRealCard ? myCardQrUrl : undefined} />
               </div>
             </div>
           )}
