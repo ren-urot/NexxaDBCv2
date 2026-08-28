@@ -470,6 +470,11 @@ export default function Holder() {
   const [scannedCard, setScannedCard] = useState<CardData | null>(null);
   const [scannedState, setScannedState] = useState<ScannedState>("idle");
   const [leadGenEnabled, setLeadGenEnabledState] = useState(false);
+  // Defaults to true (root) rather than false: the common case by far is a
+  // standalone order with no family at all, and getting this wrong only
+  // ever affects the card's own owner seeing their own controls flash
+  // briefly, never a third party — see get_public_card's is_root comment.
+  const [isRootCard, setIsRootCard] = useState(true);
 
   useEffect(() => {
     if (navState?.card || !params.orderCode) return;
@@ -489,6 +494,7 @@ export default function Holder() {
         }
         setScannedCard(result.card);
         setLeadGenEnabledState(result.lead_gen_enabled);
+        setIsRootCard(result.is_root);
         setScannedState("ready");
       })
       .catch(() => {
@@ -524,7 +530,9 @@ export default function Holder() {
     let cancelled = false;
     getPublicCard(orderCode)
       .then((result) => {
-        if (!cancelled && result) setLeadGenEnabledState(result.lead_gen_enabled);
+        if (cancelled || !result) return;
+        setLeadGenEnabledState(result.lead_gen_enabled);
+        setIsRootCard(result.is_root);
       })
       .catch(() => {
         // Non-critical — the toggle just stays at its default until a
@@ -581,7 +589,10 @@ export default function Holder() {
       : [];
   const familyRoot = family.find((f) => f.is_root);
   const familySize = family.length > 0 ? family.length : hasRealCard ? 1 : 0;
-  const canAddCard = Boolean(orderCode) && familySize > 0 && familySize < 5;
+  // Business-only, and only for the original purchaser's own card — an
+  // add-on team member's card is never root, so it never gets this button
+  // even though it's part of the same family.
+  const canAddCard = Boolean(orderCode) && familySize > 0 && familySize < 5 && isRootCard;
 
   const realCards: SavedCard[] = [...ownCards, ...collectedCards];
   const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
@@ -738,7 +749,7 @@ export default function Holder() {
               <ChevronLeft size={22} />
             </button>
             <div className="flex-1 text-white text-[15px] font-semibold">My Digital Business Card</div>
-            {isOwnerDevice && orderCode && (
+            {isOwnerDevice && orderCode && isRootCard && (
               <button
                 onClick={() => setLeadSettingsOpen(true)}
                 className="text-white/50 hover:text-white transition-colors"
@@ -811,13 +822,15 @@ export default function Holder() {
                 >
                   <ScanLine size={20} />
                 </button>
-                <button
-                  onClick={() => setTransferOpen(true)}
-                  className="text-white/50 hover:text-white transition-colors"
-                  title="Transfer to new phone"
-                >
-                  <Smartphone size={20} />
-                </button>
+                {isOwnerDevice && orderCode && isRootCard && (
+                  <button
+                    onClick={() => setTransferOpen(true)}
+                    className="text-white/50 hover:text-white transition-colors"
+                    title="Transfer to new phone"
+                  >
+                    <Smartphone size={20} />
+                  </button>
+                )}
                 <button
                   onClick={() => setTab("my-card")}
                   className="text-white/50 hover:text-white transition-colors"

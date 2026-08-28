@@ -152,6 +152,12 @@ export interface PublicCardLookup {
   card: CardData;
   status: PaymentStatus;
   lead_gen_enabled: boolean;
+  // True only for the original order in a card family — never true for an
+  // add-on card added via "Add New Cards". Gates the Business-only
+  // features (Add New Cards, Lead Generation, QR Transfer) to the
+  // original Business plan purchaser only; a team member's card only
+  // ever gets Pro-tier UI.
+  is_root: boolean;
 }
 
 // Powers the public "scan to view this card" page. SECURITY DEFINER on the

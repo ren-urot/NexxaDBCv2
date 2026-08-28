@@ -228,17 +228,25 @@ grant execute on function get_business_cards(text) to anon, authenticated;
 --
 -- create or replace cannot change an existing function's return type with
 -- the same argument list (unlike adding an argument, which at least makes
--- a new overload — this errors outright), so the old two-column shape has
--- to be dropped explicitly before recreating it with the added column.
+-- a new overload — this errors outright), so the old shape has to be
+-- dropped explicitly before recreating it with the added column.
+--
+-- is_root lets the client gate Business-only features (Add New Cards,
+-- Lead Generation, QR Transfer) to only the original Business plan
+-- purchaser — an add-on team member's card is never root, so it only
+-- ever gets Pro-tier UI, no matter what its own lead_gen_enabled/family
+-- data might otherwise suggest. Delivered here rather than requiring a
+-- second get_business_cards round-trip, so there's no gap where the
+-- owner-only controls could flash visible before this resolves.
 drop function if exists get_public_card(text);
 
 create or replace function get_public_card(p_order_code text)
-returns table (card jsonb, status text, lead_gen_enabled boolean)
+returns table (card jsonb, status text, lead_gen_enabled boolean, is_root boolean)
 language sql
 security definer
 set search_path = public
 as $$
-  select o.card, o.status, o.lead_gen_enabled
+  select o.card, o.status, o.lead_gen_enabled, (o.parent_order_id is null) as is_root
   from nexora_orders o
   where o.order_code = p_order_code
   limit 1;
