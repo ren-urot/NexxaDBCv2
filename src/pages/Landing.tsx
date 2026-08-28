@@ -46,7 +46,7 @@ const PLANS = [
     price: 899,
     cta: "outline" as const,
     active: false,
-    features: ["Everything in Pro", "Multiple Team Members (Up to 5 cards)", "Multiple DBC Management", "Lead Generation (downloadable CSV)"],
+    features: ["Everything in Pro", "Multiple Team Members (Up to 5 Cards)", "Multiple DBC Management", "Lead Generation (Downloadable CSV)"],
   },
 ];
 
