@@ -62,6 +62,24 @@ const PLANS = [
     cta: "solid" as const,
     popular: true,
     features: ["Everything in Basic", "Custom Themes & Templates", "Add Your Logo", "Whatsapp Direct Call"],
+    details: [
+      {
+        title: "Everything in Basic",
+        body: "Includes all the features from the Basic plan, plus additional customization and communication tools.",
+      },
+      {
+        title: "Custom Themes & Templates",
+        body: "Choose from different professional themes and templates to match your personal style or business branding.",
+      },
+      {
+        title: "Add Your Logo",
+        body: "Upload and display your company or personal logo on your digital business card for a more professional and branded appearance.",
+      },
+      {
+        title: "WhatsApp Direct Call",
+        body: "Add a WhatsApp contact button that allows visitors to start a conversation with you directly from your digital business card.",
+      },
+    ],
   },
   {
     name: "Business",
