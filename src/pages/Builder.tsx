@@ -262,19 +262,32 @@ export default function Builder() {
   const goNext = () => setStep(STEPS[stepIndex + 1].id);
   const goBack = () => setStep(STEPS[stepIndex - 1].id);
 
-  const handleLogoUpload = (file: File | undefined) => {
+  // Data URLs (not blob: object URLs) — blob URLs only resolve in the tab
+  // that created them, so they broke the moment card state got persisted
+  // to sessionStorage, saved to the database, or viewed on another device
+  // via the shared QR link. Data URLs are self-contained strings that
+  // survive all of that.
+  const readAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const handleLogoUpload = async (file: File | undefined) => {
     if (!file) return;
     if (file.type !== "image/png" && file.type !== "image/svg+xml") {
       alert("Logo must be an SVG or PNG file.");
       return;
     }
-    const url = URL.createObjectURL(file);
+    const url = await readAsDataUrl(file);
     set("logoUrl")(url);
   };
 
-  const handleBackgroundUpload = (file: File | undefined) => {
+  const handleBackgroundUpload = async (file: File | undefined) => {
     if (!file) return;
-    const url = URL.createObjectURL(file);
+    const url = await readAsDataUrl(file);
     setCard((c) => ({ ...c, background: "custom", backgroundImageUrl: url }));
   };
 

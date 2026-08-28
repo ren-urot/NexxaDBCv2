@@ -134,14 +134,34 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
     };
   }, [qrUrl]);
 
+  // The card itself is landscape (340×200), but the phone screen is
+  // portrait — rotate it on its side and scale it up so it fills the
+  // screen properly, the way a wallet pass does, instead of sitting tiny
+  // in a mostly-empty frame.
+  const CARD_W = 340;
+  const CARD_H = 200;
+  const SCALE = 1.7;
+
   return (
-    <div className="relative inline-block">
-      <BusinessCard data={data} size="lg" />
-      {qrDataUrl && (
-        <div className="absolute bottom-2 right-2 bg-white rounded-md p-1 shadow-lg border border-gray-100">
-          <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
-        </div>
-      )}
+    <div style={{ width: CARD_H * SCALE, height: CARD_W * SCALE, position: "relative" }}>
+      <div
+        className="relative"
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          width: CARD_W,
+          height: CARD_H,
+          transform: `translate(-50%, -50%) rotate(90deg) scale(${SCALE})`,
+        }}
+      >
+        <BusinessCard data={data} size="lg" />
+        {qrDataUrl && (
+          <div className="absolute bottom-2 right-2 bg-white rounded-md p-1 shadow-lg border border-gray-100">
+            <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
