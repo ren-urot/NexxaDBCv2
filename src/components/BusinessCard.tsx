@@ -137,18 +137,40 @@ function ContactLine({ icon: Icon, text, href }: { icon: IconType; text: string;
   return <div className="flex items-center gap-1 min-w-0">{content}</div>;
 }
 
-function SocialRow({ data, className = "" }: { data: CardData; className?: string }) {
-  const items: { Icon: IconType; key: string }[] = [];
-  if (data.linkedin) items.push({ Icon: LinkedinIcon, key: "li" });
-  if (data.facebook) items.push({ Icon: FacebookIcon, key: "fb" });
-  if (data.instagram) items.push({ Icon: InstagramIcon, key: "ig" });
-  if (data.whatsapp) items.push({ Icon: MessageCircle, key: "wa" });
+function instagramHref(v: string) {
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://instagram.com/${v.replace(/^@/, "")}`;
+}
+
+function whatsappHref(v: string) {
+  return `https://wa.me/${v.replace(/\D/g, "")}`;
+}
+
+function SocialRow({ data, className = "", interactive }: { data: CardData; className?: string; interactive: boolean }) {
+  const items: { Icon: IconType; key: string; href: string }[] = [];
+  if (data.linkedin) items.push({ Icon: LinkedinIcon, key: "li", href: websiteHref(data.linkedin) });
+  if (data.facebook) items.push({ Icon: FacebookIcon, key: "fb", href: websiteHref(data.facebook) });
+  if (data.instagram) items.push({ Icon: InstagramIcon, key: "ig", href: instagramHref(data.instagram) });
+  if (data.whatsapp) items.push({ Icon: MessageCircle, key: "wa", href: whatsappHref(data.whatsapp) });
   if (items.length === 0) return null;
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
-      {items.map(({ Icon, key }) => (
-        <Icon key={key} size={9} className="opacity-80" />
-      ))}
+      {items.map(({ Icon, key, href }) =>
+        interactive ? (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="opacity-80 hover:opacity-100"
+          >
+            <Icon size={9} />
+          </a>
+        ) : (
+          <Icon key={key} size={9} className="opacity-80" />
+        )
+      )}
     </div>
   );
 }
@@ -215,7 +237,7 @@ function renderCard(data: CardData, interactive: boolean) {
             {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
             {data.website && <ContactLine icon={Globe} text={data.website} href={webHref(data.website)} />}
           </div>
-          <SocialRow data={data} className="mt-1.5" />
+          <SocialRow data={data} className="mt-1.5" interactive={interactive} />
         </div>
       </div>
     );
@@ -241,7 +263,7 @@ function renderCard(data: CardData, interactive: boolean) {
           {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
           {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
           {data.website && <ContactLine icon={Globe} text={data.website} href={webHref(data.website)} />}
-          <SocialRow data={data} className="ml-auto" />
+          <SocialRow data={data} className="ml-auto" interactive={interactive} />
         </div>
       </div>
     );
@@ -277,7 +299,7 @@ function renderCard(data: CardData, interactive: boolean) {
             </div>
             <div className="flex flex-col items-end gap-1">
               {data.website && <ContactLine icon={Globe} text={data.website} href={webHref(data.website)} />}
-              <SocialRow data={data} />
+              <SocialRow data={data} interactive={interactive} />
             </div>
           </div>
         </div>
@@ -304,7 +326,7 @@ function renderCard(data: CardData, interactive: boolean) {
             {data.company && <div className={`font-semibold ${s.text}`}>{data.company}</div>}
             {data.email && <ContactLine icon={Mail} text={data.email} href={mailHref(data.email)} />}
             {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
-            <SocialRow data={data} className="mt-1" />
+            <SocialRow data={data} className="mt-1" interactive={interactive} />
           </div>
         </div>
       </div>
@@ -325,7 +347,7 @@ function renderCard(data: CardData, interactive: boolean) {
           {data.mobile && <ContactLine icon={Phone} text={data.mobile} href={telHref(data.mobile)} />}
           {data.website && <ContactLine icon={Globe} text={data.website} href={webHref(data.website)} />}
         </div>
-        <SocialRow data={data} className="mt-1.5" />
+        <SocialRow data={data} className="mt-1.5" interactive={interactive} />
       </div>
     );
   }
@@ -358,7 +380,7 @@ function renderCard(data: CardData, interactive: boolean) {
           </div>
           <div className="flex flex-col items-end gap-1">
             {data.website && <ContactLine icon={Globe} text={data.website} href={webHref(data.website)} />}
-            <SocialRow data={data} />
+            <SocialRow data={data} interactive={interactive} />
           </div>
         </div>
       </div>
