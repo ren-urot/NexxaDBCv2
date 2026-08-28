@@ -8,7 +8,7 @@ const VALUES = [
   },
   {
     title: "Instant, not eventual",
-    body: "Scan a QR and the card is exchanged immediately — no typing a number into a new contact, no follow-up email.",
+    body: "Scan a QR and the card is exchanged immediately, no typing a number into a new contact, no follow-up email.",
   },
   {
     title: "Yours, not a subscription",
@@ -46,12 +46,12 @@ export default function AboutUs() {
           </p>
           <p className="text-lg text-[var(--color-muted-fg)] leading-relaxed mb-6">
             So we built a card that lives on your phone instead of your wallet. Set it up once, share it by
-            scanning a QR code, and it's exchanged instantly — no app required to receive it, no typos, no reprint
+            scanning a QR code, and it's exchanged instantly, no app required to receive it, no typos, no reprint
             when your title or number changes.
           </p>
           <p className="text-lg text-[var(--color-muted-fg)] leading-relaxed">
             Every card comes with its own Holder, so the cards you collect from other people stay organized in one
-            place too — the same way a real card holder would, just one that never runs out of room.
+            place too, the same way a real card holder would, just one that never runs out of room.
           </p>
 
           <div className="grid sm:grid-cols-3 gap-8 mt-16">
@@ -71,7 +71,7 @@ export default function AboutUs() {
               Create Your Card
             </button>
             <a href="mailto:hello@nexxadbc.com" className="text-sm text-[var(--color-muted-fg)] hover:text-[var(--color-accent)] transition-colors">
-              Or say hello — hello@nexxadbc.com
+              Or say hello: hello@nexxadbc.com
             </a>
           </div>
         </div>
