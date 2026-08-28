@@ -189,10 +189,11 @@ export default function Landing() {
             <span className="text-[var(--color-accent)]">Exchange</span>.{" "}
             <span className="text-[var(--color-accent)]">Save</span>.
           </div>
-          <p className="text-[20px] font-light text-white/90 leading-relaxed">
-            When someone scans your QR, your card is added directly to their Digital Card Holder or a new Holder is
-            created for them automatically. No friction. No forms. No apps.
+          <p className="text-[20px] font-light text-white/90 leading-relaxed mb-4">
+            Use the QR Scanner inside your Digital Card Holder to scan a new card. The card is instantly added to
+            your Card Holder, or a new Holder is created automatically if you don't have one yet.
           </p>
+          <p className="text-[20px] font-light text-white/90 leading-relaxed">No friction. No forms. No apps.</p>
         </div>
       </section>
 
