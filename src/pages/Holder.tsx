@@ -380,15 +380,11 @@ function LeadSettingsPanel({
           <button
             onClick={handleToggle}
             disabled={toggling}
-            className={`shrink-0 w-10 h-6 rounded-full transition-colors relative disabled:opacity-40 ${
-              enabled ? "bg-[var(--color-accent)]" : "bg-white/15"
+            className={`shrink-0 w-10 h-6 rounded-full transition-colors flex items-center px-0.5 disabled:opacity-40 ${
+              enabled ? "bg-[var(--color-accent)] justify-end" : "bg-white/15 justify-start"
             }`}
           >
-            <span
-              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                enabled ? "translate-x-[18px]" : "translate-x-0.5"
-              }`}
-            />
+            <span className="w-5 h-5 rounded-full bg-white" />
           </button>
         </div>
 
