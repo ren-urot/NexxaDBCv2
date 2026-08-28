@@ -38,6 +38,15 @@ alter table nexora_orders add constraint nexora_orders_method_check check (metho
 -- coalesce(parent_order_id, id) to find the root.
 alter table nexora_orders add column if not exists parent_order_id bigint references nexora_orders(id);
 
+-- A payment reference is proof of one specific real-world transaction, so
+-- reusing one (whether by accident or to fraudulently claim a payment that
+-- was never made for this order) must be impossible, not just discouraged
+-- in the UI. Partial index so it never blocks on '', the column's default
+-- before a real reference is submitted.
+create unique index if not exists nexora_orders_payment_ref_unique
+  on nexora_orders (payment_ref)
+  where payment_ref <> '';
+
 alter table nexora_orders enable row level security;
 
 drop policy if exists "public_select_nexora_orders" on nexora_orders;
@@ -151,15 +160,26 @@ begin
     end if;
   end if;
 
-  insert into nexora_orders (
-    customer, email, template, amount, amount_usd, exchange_rate,
-    method, payment_ref, notes, status, card, parent_order_id
-  )
-  values (
-    p_customer, p_email, p_template, p_amount, p_amount_usd, p_exchange_rate,
-    p_method, p_payment_ref, p_notes, 'submitted', p_card, v_parent_id
-  )
-  returning order_code into v_order_code;
+  -- Checked up front for a clean error message; the unique index above is
+  -- still the real guarantee (catches the race between two submissions of
+  -- the same reference landing at nearly the same time).
+  if p_payment_ref <> '' and exists (select 1 from nexora_orders where payment_ref = p_payment_ref) then
+    raise exception 'This payment reference number has already been submitted. Each reference can only be used once.';
+  end if;
+
+  begin
+    insert into nexora_orders (
+      customer, email, template, amount, amount_usd, exchange_rate,
+      method, payment_ref, notes, status, card, parent_order_id
+    )
+    values (
+      p_customer, p_email, p_template, p_amount, p_amount_usd, p_exchange_rate,
+      p_method, p_payment_ref, p_notes, 'submitted', p_card, v_parent_id
+    )
+    returning order_code into v_order_code;
+  exception when unique_violation then
+    raise exception 'This payment reference number has already been submitted. Each reference can only be used once.';
+  end;
 
   return v_order_code;
 end;

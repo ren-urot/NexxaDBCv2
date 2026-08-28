@@ -232,7 +232,12 @@ export default function Builder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode]);
 
-  const publicCardUrl = orderCode ? `${window.location.origin}/holder/${orderCode}` : null;
+  // Only a verified payment should hand out a working QR — generating and
+  // showing it while still "submitted"/"under_verification" would let
+  // someone share it before their payment (or its reference number) has
+  // actually been confirmed.
+  const paymentVerified = liveStatus === "approved" || liveStatus === "provisioned";
+  const publicCardUrl = orderCode && paymentVerified ? `${window.location.origin}/holder/${orderCode}` : null;
 
   useEffect(() => {
     if (!publicCardUrl) {
@@ -956,16 +961,21 @@ export default function Builder() {
                 </div>
                 <div className="flex justify-center mb-4">
                   <div className="w-44 h-44 bg-[var(--color-muted)] flex items-center justify-center border border-[var(--color-border)]">
-                    {provisioningQrDataUrl ? (
-                      <img src={provisioningQrDataUrl} alt="QR code linking to your digital business card" className="w-full h-full object-contain" />
+                    {paymentVerified ? (
+                      provisioningQrDataUrl ? (
+                        <img src={provisioningQrDataUrl} alt="QR code linking to your digital business card" className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="w-5 h-5 border-2 border-[var(--color-border)] border-t-[var(--color-foreground)] rounded-full animate-spin" />
+                      )
                     ) : (
-                      <div className="w-5 h-5 border-2 border-[var(--color-border)] border-t-[var(--color-foreground)] rounded-full animate-spin" />
+                      <Lock size={20} className="text-[var(--color-border)]" />
                     )}
                   </div>
                 </div>
                 <p className="text-[10px] text-[var(--color-muted-fg)] leading-relaxed">
-                  Scan this QR to open your digital business card. Once your payment is verified, it'll show your
-                  full card, share it with anyone.
+                  {paymentVerified
+                    ? "Scan this QR to open your digital business card. Share it with anyone."
+                    : "This unlocks once your payment reference has been verified, so it can't be shared before that's confirmed."}
                 </p>
               </div>
 
