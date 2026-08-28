@@ -29,7 +29,7 @@ const PLANS = [
       "Custom Profile & Contact Info",
       "QR Code for Card Sharing",
       "Social Media Links",
-      "Works on Any Device",
+      "Works on Any Smart Phone",
     ],
   },
   {
