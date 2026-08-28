@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, Download } from "lucide-react";
+import { Trash2, Download, Bell, BellOff } from "lucide-react";
 import type { Order, PaymentStatus } from "../types";
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
@@ -344,14 +344,32 @@ function AdminDashboard() {
         <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">Admin Dashboard</div>
         {supabaseConfigured ? (
           <div className="flex items-center gap-4">
-            {notifPermission === "default" && (
-              <button
-                onClick={requestNotifPermission}
-                className="text-[10px] tracking-widest uppercase text-[var(--color-accent)] hover:opacity-70 transition-opacity"
-              >
-                Enable Notifications
-              </button>
-            )}
+            <button
+              onClick={notifPermission === "default" ? requestNotifPermission : undefined}
+              disabled={notifPermission !== "default"}
+              title={
+                notifPermission === "granted"
+                  ? "Notifications enabled"
+                  : notifPermission === "denied"
+                  ? "Notifications blocked — enable them in your browser's site settings"
+                  : notifPermission === "unsupported"
+                  ? "Notifications aren't supported in this browser"
+                  : "Enable browser notifications for new orders and admin activity"
+              }
+              className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
+                notifPermission === "granted"
+                  ? "text-[var(--color-accent)]"
+                  : notifPermission === "default"
+                  ? "text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] cursor-pointer"
+                  : "text-[var(--color-muted-fg)] opacity-40 cursor-not-allowed"
+              }`}
+            >
+              {notifPermission === "denied" || notifPermission === "unsupported" ? (
+                <BellOff size={16} />
+              ) : (
+                <Bell size={16} />
+              )}
+            </button>
             <button
               onClick={() => signOut()}
               className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
