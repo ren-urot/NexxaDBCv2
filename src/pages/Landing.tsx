@@ -43,7 +43,7 @@ const PLANS = [
   {
     name: "Business",
     desc: "For teams & companies",
-    price: 899,
+    price: 999,
     cta: "outline" as const,
     active: false,
     features: ["Everything in Pro", "Multiple Team Members (Up to 5 Cards)", "Multiple DBC Management", "Lead Generation (Downloadable CSV)"],
