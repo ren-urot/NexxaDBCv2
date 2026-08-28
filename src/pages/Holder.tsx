@@ -12,6 +12,7 @@ import QRCode from "qrcode";
 import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
 import QrScannerModal from "../components/QrScannerModal";
+import InstallPrompt from "../components/InstallPrompt";
 import { getPublicCard } from "../lib/supabase";
 
 interface SavedCard extends CardData {
@@ -547,6 +548,7 @@ export default function Holder() {
   if (isStandalone) {
     return (
       <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col" style={{ fontFamily: "var(--font-sans)" }}>
+        <InstallPrompt dark />
         <div className="flex-1 overflow-y-auto">{content}</div>
         <button
           onClick={() => navigate("/")}
