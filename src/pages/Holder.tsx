@@ -396,7 +396,7 @@ export default function Holder() {
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search Card"
                       className="absolute bg-transparent text-xs text-white focus:outline-none placeholder:text-white/40"
-                      style={{ top: 420.65, bottom: 2.35, left: 51.5, width: 257.4 }}
+                      style={{ top: 420.65, bottom: 12.35, left: 51.5, width: 227.4 }}
                     />
                   </div>
 
