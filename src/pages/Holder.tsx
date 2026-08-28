@@ -4,6 +4,10 @@ import { ChevronLeft, Menu, IdCard } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase from "../assets/holder-open-case.webp";
+import holderOpenCase1 from "../assets/holder-open-case-1.png";
+import holderOpenCase2 from "../assets/holder-open-case-2.png";
+import holderOpenCase3 from "../assets/holder-open-case-3.png";
+import holderOpenCase4 from "../assets/holder-open-case-4.png";
 import QRCode from "qrcode";
 import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
@@ -109,6 +113,14 @@ const CARD_SLOTS: { top: number; left: number; light?: boolean }[] = [
   { top: 56.3, left: 19 },
   { top: 71.7, left: 19 },
 ];
+
+// Matching case art with fewer slots for 2-4 cards — same top slot (dark,
+// light text), fewer white slots below.
+const CARD_SLOTS_2 = CARD_SLOTS.slice(0, 2);
+const CARD_SLOTS_3 = CARD_SLOTS.slice(0, 3);
+const CARD_SLOTS_4 = CARD_SLOTS.slice(0, 4);
+// The 1-card art has no dark backing slot, just a single white card.
+const CARD_SLOTS_1: { top: number; left: number; light?: boolean }[] = [{ top: 30, left: 19 }];
 
 // Shows the customer's actual card — same template, colors, logo, and
 // background as everywhere else in the app (Builder, Status page) — with
@@ -275,6 +287,26 @@ export default function Holder() {
       c.mobile.includes(q)
     );
   });
+  const activeSlots =
+    filtered.length === 1
+      ? CARD_SLOTS_1
+      : filtered.length === 2
+      ? CARD_SLOTS_2
+      : filtered.length === 3
+      ? CARD_SLOTS_3
+      : filtered.length === 4
+      ? CARD_SLOTS_4
+      : CARD_SLOTS;
+  const activeCaseArt =
+    filtered.length === 1
+      ? holderOpenCase1
+      : filtered.length === 2
+      ? holderOpenCase2
+      : filtered.length === 3
+      ? holderOpenCase3
+      : filtered.length === 4
+      ? holderOpenCase4
+      : holderOpenCase;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-[var(--color-muted)] py-10 px-4">
@@ -368,9 +400,13 @@ export default function Holder() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center pb-5">
                   <div className="relative mb-3" style={{ width: OPEN_CASE_W, marginTop: 40 }}>
-                    <img src={holderOpenCase} alt="Card holder" className="w-full h-auto" />
-                    {filtered.slice(0, CARD_SLOTS.length).map((c, i) => {
-                      const slot = CARD_SLOTS[i];
+                    <img
+                      src={activeCaseArt}
+                      alt="Card holder"
+                      className="w-full h-auto"
+                    />
+                    {filtered.slice(0, activeSlots.length).map((c, i) => {
+                      const slot = activeSlots[i];
                       return (
                         <button
                           key={c.id}
