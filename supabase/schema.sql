@@ -84,3 +84,67 @@ as $$
 $$;
 
 grant execute on function get_order_status(text, text) to anon, authenticated;
+
+-- Creates an order via a SECURITY DEFINER function instead of a raw table
+-- insert. This bypasses RLS internally (the function runs as its owner,
+-- not the caller), so order creation no longer depends on the anon/
+-- authenticated INSERT policy or on Postgres/PostgREST return-preference
+-- defaults at all — the exact combination that caused repeated RLS
+-- failures when using a plain insert. Returns the generated order_code so
+-- the client can build the customer's public card URL and QR right away.
+create or replace function submit_order(
+  p_customer text,
+  p_email text,
+  p_template text,
+  p_amount integer,
+  p_amount_usd numeric,
+  p_exchange_rate numeric,
+  p_method text,
+  p_payment_ref text,
+  p_notes text,
+  p_card jsonb
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order_code text;
+begin
+  insert into nexora_orders (
+    customer, email, template, amount, amount_usd, exchange_rate,
+    method, payment_ref, notes, status, card
+  )
+  values (
+    p_customer, p_email, p_template, p_amount, p_amount_usd, p_exchange_rate,
+    p_method, p_payment_ref, p_notes, 'submitted', p_card
+  )
+  returning order_code into v_order_code;
+
+  return v_order_code;
+end;
+$$;
+
+grant execute on function submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb)
+  to anon, authenticated;
+
+-- Serves the public "scan to view this card" page (/c/:orderCode). Card
+-- fields are meant to be shared once a card exists (that's the point of a
+-- business card), so this doesn't gate on payment status — the public page
+-- itself shows a "not active yet" state for anything other than approved/
+-- provisioned. SECURITY DEFINER again avoids needing any general SELECT
+-- policy on the table.
+create or replace function get_public_card(p_order_code text)
+returns table (card jsonb, status text)
+language sql
+security definer
+set search_path = public
+as $$
+  select o.card, o.status
+  from nexora_orders o
+  where o.order_code = p_order_code
+  limit 1;
+$$;
+
+grant execute on function get_public_card(text) to anon, authenticated;

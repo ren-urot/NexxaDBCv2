@@ -3,6 +3,7 @@ import Landing from "./pages/Landing";
 import Builder from "./pages/Builder";
 import Holder from "./pages/Holder";
 import Admin from "./pages/Admin";
+import PublicCard from "./pages/PublicCard";
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/builder" element={<Builder />} />
       <Route path="/holder" element={<Holder />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/c/:orderCode" element={<PublicCard />} />
     </Routes>
   );
 }

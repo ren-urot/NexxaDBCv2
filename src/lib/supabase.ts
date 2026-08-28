@@ -87,13 +87,26 @@ export async function fetchOrders(): Promise<OrderRow[]> {
   return data as OrderRow[];
 }
 
-export async function createOrder(order: NewOrder): Promise<void> {
+// Creates the order via a SECURITY DEFINER RPC rather than a raw table
+// insert, so it no longer depends on RLS policies or PostgREST return-
+// preference defaults at all. Returns the generated order_code, used to
+// build the customer's public card URL/QR right after submission.
+export async function createOrder(order: NewOrder): Promise<string> {
   if (!supabase) throw new Error("Supabase is not configured");
-  // No .select() here: anon can only INSERT (no SELECT policy), and asking
-  // PostgREST to return the inserted row forces a row-visibility check that
-  // fails RLS even though the insert itself is allowed.
-  const { error } = await supabase.from("nexora_orders").insert({ ...order, status: "submitted" });
+  const { data, error } = await supabase.rpc("submit_order", {
+    p_customer: order.customer,
+    p_email: order.email,
+    p_template: order.template,
+    p_amount: order.amount,
+    p_amount_usd: order.amount_usd,
+    p_exchange_rate: order.exchange_rate,
+    p_method: order.method,
+    p_payment_ref: order.payment_ref,
+    p_notes: order.notes,
+    p_card: order.card,
+  });
   if (error) throw error;
+  return data as string;
 }
 
 export async function updateOrderStatus(id: number, status: PaymentStatus): Promise<void> {
@@ -117,6 +130,20 @@ export async function getOrderStatus(paymentRef: string, email: string): Promise
     .maybeSingle();
   if (error) throw error;
   return data as OrderStatusLookup | null;
+}
+
+export interface PublicCardLookup {
+  card: CardData;
+  status: PaymentStatus;
+}
+
+// Powers the public "scan to view this card" page. SECURITY DEFINER on the
+// server side means this works with no general SELECT policy needed.
+export async function getPublicCard(orderCode: string): Promise<PublicCardLookup | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("get_public_card", { p_order_code: orderCode }).maybeSingle();
+  if (error) throw error;
+  return data as PublicCardLookup | null;
 }
 
 export function subscribeToNewOrders(onInsert: (row: OrderRow) => void): () => void {

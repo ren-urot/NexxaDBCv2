@@ -22,6 +22,7 @@ import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
 import jsPDF from "jspdf";
 import { formatUsd, phpToUsd, PHP_PER_USD } from "../lib/currency";
+import QRCode from "qrcode";
 
 const EMPTY_CARD: CardData = {
   template: "corporate",
@@ -149,7 +150,29 @@ export default function Builder() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [liveStatus, setLiveStatus] = useState<PaymentStatus>("submitted");
+  const [orderCode, setOrderCode] = useState<string | null>(null);
+  const [provisioningQrDataUrl, setProvisioningQrDataUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  const publicCardUrl = orderCode ? `${window.location.origin}/c/${orderCode}` : null;
+
+  useEffect(() => {
+    if (!publicCardUrl) {
+      setProvisioningQrDataUrl(null);
+      return;
+    }
+    let cancelled = false;
+    QRCode.toDataURL(publicCardUrl, { width: 320, margin: 1 })
+      .then((url) => {
+        if (!cancelled) setProvisioningQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setProvisioningQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [publicCardUrl]);
 
   const set = (key: keyof CardData) => (val: string) =>
     setCard((c) => ({ ...c, [key]: val }));
@@ -740,7 +763,7 @@ export default function Builder() {
                     setSubmitting(true);
                     setSubmitError(null);
                     try {
-                      await createOrder({
+                      const code = await createOrder({
                         customer: `${card.firstName} ${card.lastName}`.trim(),
                         email: card.email,
                         template: card.template,
@@ -752,6 +775,7 @@ export default function Builder() {
                         notes: proofNote,
                         card,
                       });
+                      setOrderCode(code);
                       goNext();
                     } catch (err) {
                       setSubmitError(err instanceof Error ? err.message : "Failed to submit payment. Please try again.");
@@ -827,32 +851,22 @@ export default function Builder() {
                 ))}
               </div>
 
-              {/* Simulated approved state: show provisioning QR */}
               <div className="border border-[var(--color-border)] p-8 mb-8">
                 <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-6">
-                  Provisioning QR (Demo Preview)
+                  Your Card QR
                 </div>
                 <div className="flex justify-center mb-4">
                   <div className="w-44 h-44 bg-[var(--color-muted)] flex items-center justify-center border border-[var(--color-border)]">
-                    <div className="grid grid-cols-9 gap-0.5 p-2">
-                      {Array.from({ length: 81 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-3 h-3 ${
-                            [0,1,2,3,4,5,6,9,15,18,24,27,33,36,42,45,46,47,48,49,50,51,54,60,63,69,72,73,74,75,76,77,78].includes(i)
-                              ? "bg-[var(--color-foreground)]"
-                              : (i * 13 + 7) % 5 < 2
-                              ? "bg-[var(--color-foreground)]"
-                              : "bg-transparent"
-                          }`}
-                        />
-                      ))}
-                    </div>
+                    {provisioningQrDataUrl ? (
+                      <img src={provisioningQrDataUrl} alt="QR code linking to your digital business card" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-5 h-5 border-2 border-[var(--color-border)] border-t-[var(--color-foreground)] rounded-full animate-spin" />
+                    )}
                   </div>
                 </div>
                 <p className="text-[10px] text-[var(--color-muted-fg)] leading-relaxed">
-                  Scan this QR with your phone to transfer your Digital Business Card + Holder. This QR is for
-                  provisioning only, separate from your exchange QR.
+                  Scan this QR to open your digital business card. Once your payment is verified, it'll show your
+                  full card — share it with anyone.
                 </p>
               </div>
 
@@ -877,7 +891,7 @@ export default function Builder() {
               )}
 
               <button
-                onClick={() => navigate("/holder")}
+                onClick={() => navigate("/holder", { state: { card, orderCode } })}
                 className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-10 py-3 hover:bg-[var(--color-accent)] transition-colors"
               >
                 Preview Holder Experience

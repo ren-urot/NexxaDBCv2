@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Phone, Mail, Globe, ChevronLeft, Menu, IdCard } from "lucide-react";
 import type { CardData } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase from "../assets/holder-open-case.webp";
 import dbcRibbon from "../assets/dbc-ribbon.webp";
+import QRCode from "qrcode";
 
 interface SavedCard extends CardData {
   id: string;
@@ -125,8 +126,28 @@ const QR_ANCHOR_CELLS = [0,1,2,3,4,5,6,9,15,18,24,27,33,36,42,45,46,47,48,49,50,
 const CARD_W = 315;
 const CARD_H = 554;
 
-function NexxaDbcCard({ data }: { data: CardData }) {
+function NexxaDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   const name = `${data.firstName} ${data.lastName}`.trim() || "Your Name";
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!qrUrl) {
+      setQrDataUrl(null);
+      return;
+    }
+    let cancelled = false;
+    QRCode.toDataURL(qrUrl, { width: 200, margin: 0 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [qrUrl]);
+
   return (
     <div
       className="relative mx-auto rounded-2xl bg-white shadow-2xl overflow-hidden"
@@ -176,7 +197,11 @@ function NexxaDbcCard({ data }: { data: CardData }) {
         className="absolute bottom-8 left-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
         style={{ transform: "translateX(-50%) scale(1.26)", transformOrigin: "bottom center" }}
       >
-        <QrGrid size={49} cells={QR_ANCHOR_CELLS} />
+        {qrDataUrl ? (
+          <img src={qrDataUrl} alt="Scan to view this card" className="w-[98px] h-[98px]" />
+        ) : (
+          <QrGrid size={49} cells={QR_ANCHOR_CELLS} />
+        )}
       </div>
     </div>
   );
@@ -184,6 +209,10 @@ function NexxaDbcCard({ data }: { data: CardData }) {
 
 export default function Holder() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = location.state as { card?: CardData; orderCode?: string | null } | null;
+  const myCard = navState?.card ?? MY_CARD;
+  const myCardQrUrl = navState?.orderCode ? `${window.location.origin}/c/${navState.orderCode}` : undefined;
   const [tab, setTab] = useState<Tab>("my-cards");
   const [holderOpen, setHolderOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -247,7 +276,7 @@ export default function Holder() {
                 <div className="text-white text-[15px] font-semibold">My Digital Business Card</div>
               </div>
               <div className="flex-1 flex items-center justify-center px-1 py-6">
-                <NexxaDbcCard data={MY_CARD} />
+                <NexxaDbcCard data={myCard} qrUrl={myCardQrUrl} />
               </div>
             </div>
           )}
