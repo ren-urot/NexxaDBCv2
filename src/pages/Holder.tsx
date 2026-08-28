@@ -414,7 +414,7 @@ export default function Holder() {
       {/* MY DBC tab */}
       {tab === "my-card" && (
         <div className="min-h-full flex flex-col">
-          <div className="px-5 pt-1 pb-2 flex items-center gap-4">
+          <div className="px-5 pt-1 pb-2 flex items-center gap-4 mt-[30px]">
             <button
               onClick={() => setTab("my-cards")}
               className="text-white/70 hover:text-white transition-colors"
@@ -434,7 +434,7 @@ export default function Holder() {
       {/* SAVED CARDS */}
       {tab === "my-cards" && !selectedCard && (
         <div className="min-h-full flex flex-col">
-          <div className="px-5 pt-1 pb-2 flex items-center gap-4">
+          <div className="px-5 pt-1 pb-2 flex items-center gap-4 mt-[30px]">
             {holderOpen ? (
               <button
                 onClick={() => setHolderOpen(false)}
@@ -531,7 +531,7 @@ export default function Holder() {
         <div className="min-h-full flex flex-col p-5">
           <button
             onClick={() => setSelectedCard(null)}
-            className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-white/50 mb-5 hover:text-white transition-colors"
+            className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-white/50 mb-5 hover:text-white transition-colors mt-[30px]"
           >
             <ChevronLeft size={12} /> All Cards
           </button>
