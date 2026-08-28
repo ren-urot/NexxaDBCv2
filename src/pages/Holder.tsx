@@ -205,9 +205,11 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
             className="absolute top-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
             style={{
               // Local "right" maps to screen "up" once the card rotates 90°
-              // (rotating the whole card, not the phone) — 50 screen-px is
-              // ~33 local px once the card's own SCALE (1.53x) is factored in.
-              right: 8 + 50 / SCALE,
+              // (rotating the whole card, not the phone) — moving it back
+              // down 30 screen-px means shrinking that offset, not growing
+              // it. Net of the earlier +50, this is +20 screen-px up from
+              // the original position.
+              right: 8 + (50 - 30) / SCALE,
               transform: `translateY(-50%) scale(${QR_COUNTER_SCALE})`,
               transformOrigin: "right center",
             }}
