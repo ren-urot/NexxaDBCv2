@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Phone, Mail, Globe, ChevronLeft, Menu, IdCard } from "lucide-react";
-import type { CardData } from "../types";
+import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase from "../assets/holder-open-case.webp";
 import dbcRibbon from "../assets/dbc-ribbon.webp";
 import QRCode from "qrcode";
+import Logo from "../components/Logo";
+import { getPublicCard } from "../lib/supabase";
 
 interface SavedCard extends CardData {
   id: string;
@@ -207,17 +209,93 @@ function NexxaDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   );
 }
 
+type ScannedState = "idle" | "loading" | "ready" | "pending" | "not-found" | "error";
+
 export default function Holder() {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams<{ orderCode?: string }>();
   const navState = location.state as { card?: CardData; orderCode?: string | null } | null;
-  const myCard = navState?.card ?? MY_CARD;
-  const myCardQrUrl = navState?.orderCode ? `${window.location.origin}/c/${navState.orderCode}` : undefined;
-  const [tab, setTab] = useState<Tab>("my-cards");
+
+  // Two ways to land here: from Builder with the card already in navigation
+  // state (in-app preview), or via the provisioning QR/link with only an
+  // order code in the URL (scanned fresh, e.g. from another device) — that
+  // path needs to fetch the card for itself.
+  const [scannedCard, setScannedCard] = useState<CardData | null>(null);
+  const [scannedState, setScannedState] = useState<ScannedState>("idle");
+
+  useEffect(() => {
+    if (navState?.card || !params.orderCode) return;
+    let cancelled = false;
+    setScannedState("loading");
+    getPublicCard(params.orderCode)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result) {
+          setScannedState("not-found");
+          return;
+        }
+        const activeStatuses: PaymentStatus[] = ["approved", "provisioned"];
+        if (!activeStatuses.includes(result.status)) {
+          setScannedState("pending");
+          return;
+        }
+        setScannedCard(result.card);
+        setScannedState("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setScannedState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.orderCode]);
+
+  const orderCode = navState?.orderCode ?? (scannedState === "ready" ? params.orderCode : undefined);
+  const myCard = navState?.card ?? scannedCard ?? MY_CARD;
+  const myCardQrUrl = orderCode ? `${window.location.origin}/holder/${orderCode}` : undefined;
+  const [tab, setTab] = useState<Tab>(params.orderCode ? "my-card" : "my-cards");
   const [holderOpen, setHolderOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCard, setSelectedCard] = useState<SavedCard | null>(null);
-  const cards = SAMPLE_CARDS;
+  const hasRealCard = Boolean(navState?.card || scannedCard);
+  const cards = hasRealCard
+    ? [{ ...myCard, id: "1", savedAt: SAMPLE_CARDS[0].savedAt }, ...SAMPLE_CARDS.slice(1)]
+    : SAMPLE_CARDS;
+
+  if (params.orderCode && !navState?.card && scannedState !== "ready") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-muted)] px-4 py-12">
+        <button onClick={() => navigate("/")} className="mb-8">
+          <Logo />
+        </button>
+        {scannedState === "loading" && (
+          <div className="w-6 h-6 border-2 border-[var(--color-border)] border-t-[var(--color-foreground)] rounded-full animate-spin" />
+        )}
+        {scannedState === "not-found" && (
+          <div className="text-center max-w-sm">
+            <h1 className="text-xl text-[var(--color-foreground)] mb-2">Card not found</h1>
+            <p className="text-sm text-[var(--color-muted-fg)]">This link doesn't match any digital business card.</p>
+          </div>
+        )}
+        {scannedState === "pending" && (
+          <div className="text-center max-w-sm">
+            <h1 className="text-xl text-[var(--color-foreground)] mb-2">Card not active yet</h1>
+            <p className="text-sm text-[var(--color-muted-fg)]">
+              This card's payment is still being verified. Check back once it's approved.
+            </p>
+          </div>
+        )}
+        {scannedState === "error" && (
+          <div className="text-center max-w-sm">
+            <h1 className="text-xl text-[var(--color-foreground)] mb-2">Something went wrong</h1>
+            <p className="text-sm text-[var(--color-muted-fg)]">Please try again in a moment.</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const filtered = cards.filter((c) => {
     const q = search.toLowerCase();
@@ -236,10 +314,10 @@ export default function Holder() {
       {/* Exit */}
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => (navState?.card ? navigate(-1) : navigate("/"))}
           className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
         >
-          ← Back to Nexxa
+          {navState?.card ? "← Back to Status" : "← Back to Nexxa"}
         </button>
         <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
           Phone Preview
@@ -375,7 +453,7 @@ export default function Holder() {
 
               {/* Card display */}
               <div className="flex-1 flex items-center justify-center">
-                <NexxaDbcCard data={selectedCard} />
+                <NexxaDbcCard data={selectedCard} qrUrl={selectedCard.id === "1" && hasRealCard ? myCardQrUrl : undefined} />
               </div>
             </div>
           )}

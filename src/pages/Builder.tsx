@@ -135,26 +135,63 @@ function Field({
   );
 }
 
+interface BuilderSession {
+  step: BuilderStep;
+  card: CardData;
+  paymentMethod: "gcash" | "bank" | "wise";
+  paymentRef: string;
+  proofNote: string;
+  liveStatus: PaymentStatus;
+  orderCode: string | null;
+}
+
+const SESSION_KEY = "nexora_builder_session_v1";
+
+function loadBuilderSession(): BuilderSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as BuilderSession) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Builder() {
   const navigate = useNavigate();
   const location = useLocation();
   const plan = resolvePlan((location.state as { plan?: string } | null)?.plan);
+  const savedSession = loadBuilderSession();
 
-  const [step, setStep] = useState<BuilderStep>("template");
-  const [card, setCard] = useState<CardData>({ ...EMPTY_CARD, template: plan.templates[0] });
-  const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank" | "wise">("gcash");
-  const [paymentRef, setPaymentRef] = useState("");
-  const [proofNote, setProofNote] = useState("");
+  const [step, setStep] = useState<BuilderStep>(savedSession?.step ?? "template");
+  const [card, setCard] = useState<CardData>(savedSession?.card ?? { ...EMPTY_CARD, template: plan.templates[0] });
+  const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank" | "wise">(savedSession?.paymentMethod ?? "gcash");
+  const [paymentRef, setPaymentRef] = useState(savedSession?.paymentRef ?? "");
+  const [proofNote, setProofNote] = useState(savedSession?.proofNote ?? "");
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [liveStatus, setLiveStatus] = useState<PaymentStatus>("submitted");
-  const [orderCode, setOrderCode] = useState<string | null>(null);
+  const [liveStatus, setLiveStatus] = useState<PaymentStatus>(savedSession?.liveStatus ?? "submitted");
+  const [orderCode, setOrderCode] = useState<string | null>(savedSession?.orderCode ?? null);
   const [provisioningQrDataUrl, setProvisioningQrDataUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const publicCardUrl = orderCode ? `${window.location.origin}/c/${orderCode}` : null;
+  // Lets the "Back" button from the Holder preview genuinely return here
+  // instead of resetting to step one, since navigating away unmounts this
+  // component (and its plain useState) entirely.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({ step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode })
+      );
+    } catch {
+      // Storage can be unavailable (private mode, quota) — losing resume
+      // state isn't worth surfacing an error over.
+    }
+  }, [step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode]);
+
+  const publicCardUrl = orderCode ? `${window.location.origin}/holder/${orderCode}` : null;
 
   useEffect(() => {
     if (!publicCardUrl) {

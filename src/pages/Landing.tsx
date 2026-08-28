@@ -240,7 +240,13 @@ export default function Landing() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => isActive && navigate("/builder", { state: { plan: p.name.toLowerCase() } })}
+                  onClick={() => {
+                    if (!isActive) return;
+                    // Starting a genuinely new order — any in-progress session
+                    // from a previous purchase shouldn't leak into this one.
+                    sessionStorage.removeItem("nexora_builder_session_v1");
+                    navigate("/builder", { state: { plan: p.name.toLowerCase() } });
+                  }}
                   disabled={!isActive}
                   className={`w-full py-3 rounded-[7px] font-medium transition-colors mt-auto ${
                     !isActive
