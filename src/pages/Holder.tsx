@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download, Smartphone } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase1 from "../assets/holder-open-case-1.png";
@@ -22,36 +22,10 @@ import {
   getLeads,
   type LeadRow,
   setLeadGenEnabled,
+  createTransfer,
 } from "../lib/supabase";
-import { isOwnedOrder, isUnlockedCard, markUnlockedCard } from "../lib/deviceOwnership";
-
-interface SavedCard extends CardData {
-  id: string;
-  savedAt: string;
-}
-
-// Cards collected by scanning someone else's QR live only on this device —
-// no accounts, no backend table. Keyed by the scanned order_code so the
-// same card can't be added twice.
-const COLLECTED_CARDS_KEY = "nexora_collected_cards_v1";
-
-function loadCollectedCards(): SavedCard[] {
-  try {
-    const raw = localStorage.getItem(COLLECTED_CARDS_KEY);
-    return raw ? (JSON.parse(raw) as SavedCard[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCollectedCards(cards: SavedCard[]) {
-  try {
-    localStorage.setItem(COLLECTED_CARDS_KEY, JSON.stringify(cards));
-  } catch {
-    // Storage can be unavailable (private mode, quota) — the scan itself
-    // still worked, just won't persist across a reload.
-  }
-}
+import { isOwnedOrder, isUnlockedCard, markUnlockedCard, getOwnedOrders } from "../lib/deviceOwnership";
+import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -426,6 +400,61 @@ function LeadSettingsPanel({
   );
 }
 
+// Business plan "QR Transfer": moves this device's local-only data
+// (collected cards + which orders it recognizes itself as owning — the
+// owned family cards themselves already live server-side and need no
+// transfer) to a new phone via a short-lived, one-time QR.
+function TransferPanel({ onClose }: { onClose: () => void }) {
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const payload = { collectedCards: loadCollectedCards(), ownedOrders: getOwnedOrders() };
+    createTransfer(payload)
+      .then((token) => QRCode.toDataURL(`${window.location.origin}/transfer/${token}`, { width: 320, margin: 1 }))
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Couldn't start the transfer. Please try again.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
+      <div className="w-full max-w-sm bg-[var(--color-foreground)] rounded-t-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-white text-sm font-semibold">Transfer to New Phone</div>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {error && <div className="text-red-400 text-[11px] mb-4">{error}</div>}
+
+        <div className="flex justify-center mb-4">
+          <div className="w-52 h-52 bg-white rounded-[10px] flex items-center justify-center">
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Scan on your new phone to transfer your Card Holder" className="w-full h-full object-contain" />
+            ) : !error ? (
+              <div className="w-5 h-5 border-2 border-[var(--color-border)] border-t-[var(--color-foreground)] rounded-full animate-spin" />
+            ) : null}
+          </div>
+        </div>
+
+        <p className="text-white/50 text-[11px] leading-relaxed text-center">
+          On your new phone, open the camera and scan this QR within 15 minutes. It brings over every card you've
+          collected and reopens your own card's settings there — no cards are removed from this phone.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 type ScannedState = "idle" | "loading" | "ready" | "pending" | "not-found" | "error";
 
 export default function Holder() {
@@ -516,6 +545,7 @@ export default function Holder() {
   const [collectedCards, setCollectedCards] = useState<SavedCard[]>(() => loadCollectedCards());
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   // "Add New Cards": every card in this order's family (itself plus any
   // ₱199 add-on cards bought under the same Card Holder), fetched once we
@@ -782,6 +812,13 @@ export default function Holder() {
                   <ScanLine size={20} />
                 </button>
                 <button
+                  onClick={() => setTransferOpen(true)}
+                  className="text-white/50 hover:text-white transition-colors"
+                  title="Transfer to new phone"
+                >
+                  <Smartphone size={20} />
+                </button>
+                <button
                   onClick={() => setTab("my-card")}
                   className="text-white/50 hover:text-white transition-colors"
                   title="My Digital Business Card"
@@ -791,6 +828,7 @@ export default function Holder() {
               </>
             )}
           </div>
+          {transferOpen && <TransferPanel onClose={() => setTransferOpen(false)} />}
 
           {!holderOpen ? (
             <button

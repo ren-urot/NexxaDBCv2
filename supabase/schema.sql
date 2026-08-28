@@ -320,3 +320,73 @@ as $$
 $$;
 
 grant execute on function get_leads(text) to anon, authenticated;
+
+-- Business plan: "QR Transfer" — moving a Card Holder's device-local data
+-- (collected cards, plus which orders this device recognizes itself as
+-- the owner of — see deviceOwnership.ts) to a new phone. The owned family
+-- cards themselves already live server-side and need no transfer; this is
+-- only for what's local-storage-only today.
+--
+-- A short-lived, one-time bearer token, not tied to any order_code or
+-- account: the old phone POSTs its local data and gets a token back, the
+-- QR encodes a link with that token, the new phone visits it once. No RLS
+-- policies at all — claim_transfer's delete-and-return makes the read the
+-- same atomic operation as the one-time invalidation, so there's no
+-- window where a direct table read could get at a transfer's payload.
+create table if not exists nexora_transfers (
+  id bigint generated always as identity primary key,
+  token text not null unique default gen_random_uuid()::text,
+  payload jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table nexora_transfers enable row level security;
+
+create or replace function create_transfer(p_payload jsonb)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token text;
+begin
+  if pg_column_size(p_payload) > 200000 then
+    raise exception 'Transfer payload is too large.';
+  end if;
+
+  -- Opportunistic cleanup instead of a separate scheduled job — this app
+  -- has no cron infra, and every create/claim call is a natural place to
+  -- sweep out anything that was started but never picked up.
+  delete from nexora_transfers where created_at < now() - interval '15 minutes';
+
+  insert into nexora_transfers (payload) values (p_payload) returning token into v_token;
+  return v_token;
+end;
+$$;
+
+grant execute on function create_transfer(jsonb) to anon, authenticated;
+
+-- delete ... returning is the whole mechanism here: it makes "read the
+-- payload" and "invalidate the token" a single atomic step, so the token
+-- is truly one-time-use even under a race between two claim attempts.
+create or replace function claim_transfer(p_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_payload jsonb;
+begin
+  delete from nexora_transfers where created_at < now() - interval '15 minutes';
+
+  delete from nexora_transfers
+  where token = p_token
+  returning payload into v_payload;
+
+  return v_payload;
+end;
+$$;
+
+grant execute on function claim_transfer(text) to anon, authenticated;

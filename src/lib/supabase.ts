@@ -217,6 +217,28 @@ export async function getLeads(orderCode: string): Promise<LeadRow[]> {
   return (data ?? []) as LeadRow[];
 }
 
+// Business plan: "QR Transfer" — moves a Card Holder's device-local data
+// (collected cards + which orders this device owns) to a new phone via a
+// short-lived, one-time token. See schema.sql for why no order_code or
+// account is involved: it's a bearer token for a device's local data, not
+// tied to any one card.
+export async function createTransfer(payload: unknown): Promise<string> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { data, error } = await supabase.rpc("create_transfer", { p_payload: payload });
+  if (error) throw error;
+  return data as string;
+}
+
+// Returns null if the token is unknown, already used, or expired (15
+// minutes) — claim_transfer deletes the row as part of reading it, so a
+// token only ever works once.
+export async function claimTransfer<T>(token: string): Promise<T | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("claim_transfer", { p_token: token });
+  if (error) throw error;
+  return (data ?? null) as T | null;
+}
+
 export interface OrderEventHandlers {
   onInsert?: (row: OrderRow) => void;
   onUpdate?: (row: OrderRow) => void;

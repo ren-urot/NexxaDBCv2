@@ -42,6 +42,19 @@ export function isOwnedOrder(orderCode: string): boolean {
   return readSet(OWNED_KEY).has(orderCode);
 }
 
+// Powers QR Transfer: the full list of order_codes this device recognizes
+// itself as the owner of, to hand off in the transfer payload, and a way
+// to merge in whatever a new device receives from one.
+export function getOwnedOrders(): string[] {
+  return [...readSet(OWNED_KEY)];
+}
+
+export function mergeOwnedOrders(orderCodes: string[]): void {
+  const set = readSet(OWNED_KEY);
+  for (const code of orderCodes) set.add(code);
+  writeSet(OWNED_KEY, set);
+}
+
 // A lead who already left their info for this card once shouldn't be
 // asked again every time they revisit the same link.
 export function markUnlockedCard(orderCode: string): void {
