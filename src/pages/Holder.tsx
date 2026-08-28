@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Menu, IdCard } from "lucide-react";
+import { ChevronLeft, Menu, IdCard, ScanLine } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase from "../assets/holder-open-case.webp";
@@ -11,11 +11,35 @@ import holderOpenCase4 from "../assets/holder-open-case-4.png";
 import QRCode from "qrcode";
 import Logo from "../components/Logo";
 import BusinessCard from "../components/BusinessCard";
+import QrScannerModal from "../components/QrScannerModal";
 import { getPublicCard } from "../lib/supabase";
 
 interface SavedCard extends CardData {
   id: string;
   savedAt: string;
+}
+
+// Cards collected by scanning someone else's QR live only on this device —
+// no accounts, no backend table. Keyed by the scanned order_code so the
+// same card can't be added twice.
+const COLLECTED_CARDS_KEY = "nexora_collected_cards_v1";
+
+function loadCollectedCards(): SavedCard[] {
+  try {
+    const raw = localStorage.getItem(COLLECTED_CARDS_KEY);
+    return raw ? (JSON.parse(raw) as SavedCard[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCollectedCards(cards: SavedCard[]) {
+  try {
+    localStorage.setItem(COLLECTED_CARDS_KEY, JSON.stringify(cards));
+  } catch {
+    // Storage can be unavailable (private mode, quota) — the scan itself
+    // still worked, just won't persist across a reload.
+  }
 }
 
 const BASE_CARD: CardData = {
@@ -239,9 +263,66 @@ export default function Holder() {
   const [search, setSearch] = useState("");
   const [selectedCard, setSelectedCard] = useState<SavedCard | null>(null);
   const hasRealCard = Boolean(navState?.card || scannedCard);
-  const cards = hasRealCard
-    ? [{ ...myCard, id: "1", savedAt: SAMPLE_CARDS[0].savedAt }, ...SAMPLE_CARDS.slice(1)]
-    : SAMPLE_CARDS;
+  const [collectedCards, setCollectedCards] = useState<SavedCard[]>(() => loadCollectedCards());
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  const realCards: SavedCard[] = [
+    ...(hasRealCard ? [{ ...myCard, id: "own", savedAt: new Date().toISOString() }] : []),
+    ...collectedCards,
+  ];
+  const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
+
+  const handleScan = async (data: string) => {
+    let scannedOrderCode: string | null = null;
+    try {
+      const url = new URL(data);
+      const match = url.pathname.match(/^\/holder\/([\w-]+)$/);
+      scannedOrderCode = match ? match[1] : null;
+    } catch {
+      scannedOrderCode = null;
+    }
+    if (!scannedOrderCode) {
+      setScanMessage("That's not a NexxaDBC card QR code.");
+      setScannerOpen(false);
+      return;
+    }
+    if (scannedOrderCode === orderCode) {
+      setScanMessage("That's your own card.");
+      setScannerOpen(false);
+      return;
+    }
+    if (collectedCards.some((c) => c.id === scannedOrderCode)) {
+      setScanMessage("Already in your Card Holder.");
+      setScannerOpen(false);
+      return;
+    }
+    setScannerOpen(false);
+    try {
+      const result = await getPublicCard(scannedOrderCode);
+      const activeStatuses: PaymentStatus[] = ["approved", "provisioned"];
+      if (!result || !activeStatuses.includes(result.status)) {
+        setScanMessage("That card isn't active yet.");
+        return;
+      }
+      const entry: SavedCard = { ...result.card, id: scannedOrderCode, savedAt: new Date().toISOString() };
+      setCollectedCards((cs) => {
+        const next = [entry, ...cs];
+        saveCollectedCards(next);
+        return next;
+      });
+      const name = `${result.card.firstName} ${result.card.lastName}`.trim() || "their card";
+      setScanMessage(`Added ${name} to your Card Holder.`);
+    } catch {
+      setScanMessage("Couldn't load that card. Try again.");
+    }
+  };
+
+  useEffect(() => {
+    if (!scanMessage) return;
+    const timer = setTimeout(() => setScanMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [scanMessage]);
 
   if (params.orderCode && !navState?.card && scannedState !== "ready") {
     return (
@@ -315,6 +396,13 @@ export default function Holder() {
 
   const content = (
     <>
+      {scannerOpen && <QrScannerModal onScan={handleScan} onClose={() => setScannerOpen(false)} />}
+      {scanMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-black/90 text-white text-xs px-4 py-2.5 rounded-full shadow-lg max-w-[90vw] text-center">
+          {scanMessage}
+        </div>
+      )}
+
       {/* MY DBC tab */}
       {tab === "my-card" && (
         <div className="min-h-full flex flex-col">
@@ -354,13 +442,22 @@ export default function Holder() {
               )}
             </div>
             {holderOpen && (
-              <button
-                onClick={() => setTab("my-card")}
-                className="text-white/50 hover:text-white transition-colors"
-                title="My Digital Business Card"
-              >
-                <IdCard size={20} />
-              </button>
+              <>
+                <button
+                  onClick={() => setScannerOpen(true)}
+                  className="text-white/50 hover:text-white transition-colors"
+                  title="Scan someone's card"
+                >
+                  <ScanLine size={20} />
+                </button>
+                <button
+                  onClick={() => setTab("my-card")}
+                  className="text-white/50 hover:text-white transition-colors"
+                  title="My Digital Business Card"
+                >
+                  <IdCard size={20} />
+                </button>
+              </>
             )}
           </div>
 
@@ -431,7 +528,16 @@ export default function Holder() {
 
           {/* Card display */}
           <div className="flex-1 flex items-center justify-center">
-            <RealDbcCard data={selectedCard} qrUrl={selectedCard.id === "1" && hasRealCard ? myCardQrUrl : undefined} />
+            <RealDbcCard
+              data={selectedCard}
+              qrUrl={
+                selectedCard.id === "own" && hasRealCard
+                  ? myCardQrUrl
+                  : collectedCards.some((c) => c.id === selectedCard.id)
+                  ? `${window.location.origin}/holder/${selectedCard.id}`
+                  : undefined
+              }
+            />
           </div>
         </div>
       )}
