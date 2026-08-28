@@ -152,14 +152,33 @@ export async function getPublicCard(orderCode: string): Promise<PublicCardLookup
   return data as PublicCardLookup | null;
 }
 
-export function subscribeToNewOrders(onInsert: (row: OrderRow) => void): () => void {
+export interface OrderEventHandlers {
+  onInsert?: (row: OrderRow) => void;
+  onUpdate?: (row: OrderRow) => void;
+  onDelete?: (oldRow: { id: number }) => void;
+}
+
+// Powers the Admin dashboard's live activity feed: new orders, status
+// changes, and deletions — useful across multiple admins working the same
+// dashboard at once, not just for catching brand-new submissions.
+export function subscribeToOrderEvents(handlers: OrderEventHandlers): () => void {
   if (!supabase) return () => {};
   const channel = supabase
-    .channel("nexora_orders_inserts")
+    .channel("nexora_orders_events")
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "nexora_orders" },
-      (payload) => onInsert(payload.new as OrderRow)
+      (payload) => handlers.onInsert?.(payload.new as OrderRow)
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "nexora_orders" },
+      (payload) => handlers.onUpdate?.(payload.new as OrderRow)
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "nexora_orders" },
+      (payload) => handlers.onDelete?.(payload.old as { id: number })
     )
     .subscribe();
   return () => {
