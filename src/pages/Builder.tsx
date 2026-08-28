@@ -192,9 +192,10 @@ export default function Builder() {
   const sessionKey = addOn ? `nexora_builder_addon_session_v1:${addOn.addTo}` : SESSION_KEY;
   const savedSession = loadBuilderSession(sessionKey);
 
-  // The two steps that only make sense when choosing branding from
-  // scratch — an add-on card inherits its family's branding untouched.
-  const activeSteps = addOn ? STEPS.filter((s) => s.id !== "template" && s.id !== "customize") : STEPS;
+  // An add-on card inherits its family's branding untouched and skips
+  // straight from entering the person's info to payment — no design step,
+  // no separate preview screen, since nothing about the design changes.
+  const activeSteps = addOn ? STEPS.filter((s) => s.id === "details" || s.id === "payment" || s.id === "status") : STEPS;
 
   const [step, setStep] = useState<BuilderStep>(savedSession?.step ?? (addOn ? "details" : "template"));
   const [card, setCard] = useState<CardData>(
