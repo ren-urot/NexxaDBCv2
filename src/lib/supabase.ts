@@ -7,7 +7,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 export const supabase = supabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+      // Force PostgREST to skip RETURNING on every insert/update unless a
+      // call explicitly opts into it with .select(). Without this, whether
+      // a mutation implicitly returns the row (and so gets checked against
+      // the SELECT policy, not just the INSERT/UPDATE one) is left up to
+      // the server's own default rather than this client's code — the anon
+      // role here only has an INSERT policy, so a mutation call unlucky
+      // enough to trigger that default fails RLS on the return, not the
+      // write itself.
+      global: { headers: { Prefer: "return=minimal" } },
+    })
   : null;
 
 export async function signIn(email: string, password: string): Promise<void> {
