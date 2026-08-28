@@ -16,36 +16,34 @@ function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+// No browser allows a silent, zero-interaction install — that's a
+// deliberate security boundary on every platform, not something an app can
+// opt out of. This gets as close as the platform allows: on Android/Chrome
+// it fires the native install dialog itself the moment the page is ready
+// (no extra tap on our own UI first), and on iOS — which has no install API
+// at all — it shows the "Add to Home Screen" instructions immediately
+// instead of hiding them behind a click.
 export default function InstallPrompt({ dark = false }: { dark?: boolean }) {
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [standalone, setStandalone] = useState(false);
 
   useEffect(() => {
     setStandalone(isStandaloneDisplay());
+    if (isIos()) {
+      setShowIosHelp(true);
+      return;
+    }
     const onPrompt = (e: Event) => {
       e.preventDefault();
-      setInstallEvent(e as BeforeInstallPromptEvent);
+      const installEvent = e as BeforeInstallPromptEvent;
+      installEvent.prompt();
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
 
-  if (standalone || dismissed) return null;
-  // Neither an Android/Chrome install prompt available nor iOS (which never
-  // fires beforeinstallprompt but does support manual Add to Home Screen).
-  if (!installEvent && !isIos()) return null;
-
-  const handleInstall = async () => {
-    if (installEvent) {
-      await installEvent.prompt();
-      const choice = await installEvent.userChoice;
-      if (choice.outcome === "accepted") setInstallEvent(null);
-      return;
-    }
-    setShowIosHelp(true);
-  };
+  if (standalone || dismissed || !showIosHelp) return null;
 
   return (
     <div
@@ -56,15 +54,9 @@ export default function InstallPrompt({ dark = false }: { dark?: boolean }) {
       }`}
     >
       <Download size={13} className="shrink-0" />
-      {showIosHelp ? (
-        <span className="normal-case tracking-normal flex-1">
-          Tap the Share icon, then "Add to Home Screen".
-        </span>
-      ) : (
-        <button onClick={handleInstall} className="flex-1 text-left hover:opacity-70 transition-opacity">
-          Install this app on your phone
-        </button>
-      )}
+      <span className="normal-case tracking-normal flex-1">
+        Tap the Share icon, then "Add to Home Screen".
+      </span>
       <button onClick={() => setDismissed(true)} className="shrink-0 hover:opacity-70 transition-opacity">
         <X size={13} />
       </button>
