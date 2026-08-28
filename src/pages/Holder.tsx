@@ -481,7 +481,7 @@ export default function Holder() {
             </button>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center pb-5">
-              <div className="relative mb-3" style={{ width: OPEN_CASE_W, marginTop: 40 }}>
+              <div className="relative mb-3" style={{ width: OPEN_CASE_W, marginTop: 90 }}>
                 <img
                   src={activeCaseArt}
                   alt="Card holder"
