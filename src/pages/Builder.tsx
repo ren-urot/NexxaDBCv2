@@ -360,8 +360,8 @@ export default function Builder() {
 
   const handleLogoUpload = async (file: File | undefined) => {
     if (!file) return;
-    if (file.type !== "image/png" && file.type !== "image/svg+xml") {
-      alert("Logo must be an SVG or PNG file.");
+    if (file.type !== "image/png") {
+      alert("Logo must be a PNG file.");
       return;
     }
     const url = await readAsDataUrl(file);
@@ -671,12 +671,12 @@ export default function Builder() {
                     <span className="text-xs text-[var(--color-muted-fg)]">{card.logoUrl ? "Replace logo" : "Upload logo"}</span>
                     <input
                       type="file"
-                      accept=".svg,.png,image/svg+xml,image/png"
+                      accept=".png,image/png"
                       className="hidden"
                       onChange={(e) => handleLogoUpload(e.target.files?.[0])}
                     />
                   </label>
-                  <span className="block mt-1.5 text-[10px] text-[var(--color-muted-fg)]">SVG or PNG only</span>
+                  <span className="block mt-1.5 text-[10px] text-[var(--color-muted-fg)]">PNG only</span>
                 </div>
 
                 <div className="h-px bg-[var(--color-border)]" />
