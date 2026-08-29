@@ -809,7 +809,7 @@ export default function Holder() {
               <Menu size={22} className="text-white/40" />
             )}
             <div className="flex-1">
-              <div className="text-white text-lg font-semibold leading-tight">My Card Holder</div>
+              <div className="text-white text-[13.5px] font-semibold leading-tight">My Card Holder</div>
               {!holderOpen && (
                 <div className="text-white/50 text-xs mt-0.5">Browse your business cards</div>
               )}
