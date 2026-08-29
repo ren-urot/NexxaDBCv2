@@ -1,9 +1,9 @@
-// This app has no login for card owners — /holder/:orderCode is the same
+// This app has no login for card owners: /holder/:orderCode is the same
 // URL used for the owner's own installed card AND the public link/QR they
 // hand out to be scanned. Lead Generation needs to gate the latter without
 // ever gating the former, so the owner's own device is tagged locally the
 // moment it creates an order (see Builder's submit-payment handler). Every
-// other visit to that URL — a fresh scan from someone else — has no such
+// other visit to that URL (a fresh scan from someone else) has no such
 // tag and is treated as a real scan.
 //
 // Device-local by nature, same tradeoff already made for collected cards
@@ -27,7 +27,7 @@ function writeSet(key: string, values: Set<string>) {
   try {
     localStorage.setItem(key, JSON.stringify([...values]));
   } catch {
-    // Storage can be unavailable (private mode, quota) — losing this is
+    // Storage can be unavailable (private mode, quota); losing this is
     // not worth surfacing an error over.
   }
 }

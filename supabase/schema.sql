@@ -1,5 +1,5 @@
 -- Run this once in the Supabase SQL Editor (Project > SQL Editor > New query).
--- Safe to re-run any number of times — drops and recreates policies so it
+-- Safe to re-run any number of times: drops and recreates policies so it
 -- always ends in the same correct state, regardless of what's already there.
 
 create table if not exists nexora_orders (
@@ -33,12 +33,12 @@ alter table nexora_orders add constraint nexora_orders_method_check check (metho
 -- Links an add-on card (Business plan: "Add New Cards") back to the order
 -- that owns the Card Holder it belongs to. Null on every normal, standalone
 -- order and on the first ("root") card of a family. A family is always
--- exactly one level deep: a root order plus its direct children — nothing
+-- exactly one level deep: a root order plus its direct children, nothing
 -- ever points at a non-root row, so callers only ever need to resolve
 -- coalesce(parent_order_id, id) to find the root.
 alter table nexora_orders add column if not exists parent_order_id bigint references nexora_orders(id);
 
--- Business plan: "Lead Generation" — an order can require anyone who scans
+-- Business plan "Lead Generation": an order can require anyone who scans
 -- the card to leave contact info before it unlocks. Off by default. Added
 -- here (not further down near the RPCs that use it) because it has to
 -- exist before get_public_card's body below can reference it.
@@ -94,7 +94,7 @@ end $$;
 -- table (which would let anyone list every order's name/email/card data).
 -- SECURITY DEFINER bypasses RLS internally, but the function itself only
 -- ever returns two columns for the one row matching both the payment
--- reference AND the email the customer themselves provided at submission —
+-- reference AND the email the customer themselves provided at submission;
 -- there's no way to enumerate other orders through it.
 create or replace function get_order_status(p_payment_ref text, p_email text)
 returns table (status text, order_code text)
@@ -111,7 +111,7 @@ $$;
 grant execute on function get_order_status(text, text) to anon, authenticated;
 
 -- Postgres identifies a function by name + argument TYPE list, not by name
--- alone — so adding a parameter below changes the signature, and
+-- alone, so adding a parameter below changes the signature, and
 -- `create or replace` would leave the old 10-arg version around as a
 -- second overload instead of truly replacing it. Two overloads that could
 -- both match a same-shaped call is exactly the kind of ambiguity that
@@ -123,7 +123,7 @@ drop function if exists submit_order(text, text, text, integer, numeric, numeric
 -- insert. This bypasses RLS internally (the function runs as its owner,
 -- not the caller), so order creation no longer depends on the anon/
 -- authenticated INSERT policy or on Postgres/PostgREST return-preference
--- defaults at all — the exact combination that caused repeated RLS
+-- defaults at all: the exact combination that caused repeated RLS
 -- failures when using a plain insert. Returns the generated order_code so
 -- the client can build the customer's public card URL and QR right away.
 create or replace function submit_order(
@@ -149,7 +149,7 @@ declare
   v_parent_id bigint;
 begin
   -- Resolved server-side from the order_code the client already has (never
-  -- a raw numeric id — the client never sees or handles those), and always
+  -- a raw numeric id: the client never sees or handles those), and always
   -- re-pointed at the true root so a family stays exactly one level deep
   -- even if the caller passed a child's own order_code by mistake.
   if p_parent_order_code is not null then
@@ -196,7 +196,7 @@ grant execute on function submit_order(text, text, text, integer, numeric, numer
 
 -- Powers the Card Holder's "Add New Cards" list: given any order_code that
 -- belongs to a family (root or an add-on child), returns every card in
--- that family. SECURITY DEFINER avoids needing a general SELECT policy —
+-- that family. SECURITY DEFINER avoids needing a general SELECT policy:
 -- same trust model as get_public_card: knowing an order_code within the
 -- family is the only credential this app has, root or child.
 create or replace function get_business_cards(p_order_code text)
@@ -221,19 +221,19 @@ grant execute on function get_business_cards(text) to anon, authenticated;
 
 -- Serves the public "scan to view this card" page (/c/:orderCode). Card
 -- fields are meant to be shared once a card exists (that's the point of a
--- business card), so this doesn't gate on payment status — the public page
+-- business card), so this doesn't gate on payment status; the public page
 -- itself shows a "not active yet" state for anything other than approved/
 -- provisioned. SECURITY DEFINER again avoids needing any general SELECT
 -- policy on the table.
 --
 -- create or replace cannot change an existing function's return type with
 -- the same argument list (unlike adding an argument, which at least makes
--- a new overload — this errors outright), so the old shape has to be
+-- a new overload; this errors outright), so the old shape has to be
 -- dropped explicitly before recreating it with the added column.
 --
 -- is_root lets the client gate Business-only features (Add New Cards,
 -- Lead Generation, QR Transfer) to only the original Business plan
--- purchaser — an add-on team member's card is never root, so it only
+-- purchaser: an add-on team member's card is never root, so it only
 -- ever gets Pro-tier UI, no matter what its own lead_gen_enabled/family
 -- data might otherwise suggest. Delivered here rather than requiring a
 -- second get_business_cards round-trip, so there's no gap where the
@@ -255,7 +255,7 @@ $$;
 grant execute on function get_public_card(text) to anon, authenticated;
 
 -- There's no login for card owners (order_code is this whole app's only
--- credential — see get_public_card/get_business_cards above), so toggling
+-- credential; see get_public_card/get_business_cards above), so toggling
 -- this is trusted the same way: knowing the order_code is exactly as much
 -- proof of ownership as every other owner-only action already relies on.
 create or replace function set_lead_gen(p_order_code text, p_enabled boolean)
@@ -279,7 +279,7 @@ create table if not exists nexora_leads (
 
 -- RLS with no policies at all: every access goes through the two
 -- SECURITY DEFINER functions below, so there's deliberately no direct-table
--- path for anon/authenticated at all — not even insert. A lead's contact
+-- path for anon/authenticated at all, not even insert. A lead's contact
 -- info is exactly the kind of data that must never be broadly readable.
 alter table nexora_leads enable row level security;
 
@@ -304,7 +304,7 @@ $$;
 grant execute on function submit_lead(text, text, text) to anon, authenticated;
 
 -- Powers the owner's "captured leads" list/CSV download on their own Card
--- Holder. Same order_code-as-credential trust model as everything else —
+-- Holder. Same order_code-as-credential trust model as everything else;
 -- also resolves the family root first so a lead captured on any add-on
 -- card in the family shows up for the owner regardless of which card's
 -- order_code they're viewing from.
@@ -329,16 +329,16 @@ $$;
 
 grant execute on function get_leads(text) to anon, authenticated;
 
--- Business plan: "QR Transfer" — moving a Card Holder's device-local data
+-- Business plan "QR Transfer": moving a Card Holder's device-local data
 -- (collected cards, plus which orders this device recognizes itself as
--- the owner of — see deviceOwnership.ts) to a new phone. The owned family
+-- the owner of; see deviceOwnership.ts) to a new phone. The owned family
 -- cards themselves already live server-side and need no transfer; this is
 -- only for what's local-storage-only today.
 --
 -- A short-lived, one-time bearer token, not tied to any order_code or
 -- account: the old phone POSTs its local data and gets a token back, the
 -- QR encodes a link with that token, the new phone visits it once. No RLS
--- policies at all — claim_transfer's delete-and-return makes the read the
+-- policies at all: claim_transfer's delete-and-return makes the read the
 -- same atomic operation as the one-time invalidation, so there's no
 -- window where a direct table read could get at a transfer's payload.
 create table if not exists nexora_transfers (
@@ -366,7 +366,7 @@ begin
     raise exception 'Transfer payload is too large.';
   end if;
 
-  -- Opportunistic cleanup instead of a separate scheduled job — this app
+  -- Opportunistic cleanup instead of a separate scheduled job: this app
   -- has no cron infra, and every create/claim call is a natural place to
   -- sweep out anything that was started but never picked up.
   delete from nexora_transfers where created_at < now() - interval '15 minutes';
@@ -403,7 +403,7 @@ $$;
 grant execute on function claim_transfer(text) to anon, authenticated;
 
 -- Landing page "Stay Connected" newsletter form. Independent of
--- nexora_leads (which is scoped to one card's family via order_id) —
+-- nexora_leads (which is scoped to one card's family via order_id):
 -- these are site-wide inquiries for NexxaDBC itself, not tied to any one
 -- customer's card, so they get their own table rather than a fake/shared
 -- order_id.
@@ -434,8 +434,8 @@ $$;
 grant execute on function subscribe_email(text) to anon, authenticated;
 
 -- Read access mirrors the Admin dashboard's own orders policy: signed-in
--- only. No UI reads this yet — query it directly in the SQL Editor, or
--- from Admin later if that's wired up — but the function exists now so
+-- only. No UI reads this yet; query it directly in the SQL Editor, or
+-- from Admin later if that's wired up, but the function exists now so
 -- there's a real access path instead of only ever having the raw table.
 create or replace function get_subscribers()
 returns table (email text, subscribed_at timestamptz)
@@ -447,7 +447,7 @@ as $$
 $$;
 
 -- Postgres grants EXECUTE on every newly created function to PUBLIC (which
--- anon inherits) by default — granting to authenticated alone does NOT
+-- anon inherits) by default; granting to authenticated alone does NOT
 -- revoke that. Without this explicit revoke, the subscriber list (email
 -- addresses) would be readable by anyone, defeating the whole point of
 -- restricting this one function to signed-in admins.

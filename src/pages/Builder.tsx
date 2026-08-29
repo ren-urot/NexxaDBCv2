@@ -73,7 +73,7 @@ const BACKGROUNDS: { id: BackgroundStyle; label: string }[] = [
   { id: "gradient", label: "Gradient" },
 ];
 
-// Pro/Business background templates — selecting one just pre-fills the
+// Pro/Business background templates: selecting one just pre-fills the
 // existing "custom" background mechanism (background: "custom" +
 // backgroundImageUrl) rather than needing a new BackgroundStyle at all.
 const BG_TEMPLATES: { id: string; src: string }[] = [
@@ -186,7 +186,7 @@ function loadBuilderSession(key: string): BuilderSession | null {
 }
 
 interface AddOnState {
-  // Order code of the family's root card (see get_business_cards) — new
+  // Order code of the family's root card (see get_business_cards): new
   // cards always attach here, never to a child, so a family stays exactly
   // one level deep.
   addTo: string;
@@ -196,7 +196,7 @@ interface AddOnState {
 const ADD_ON_PRICE_PHP = 199;
 
 // Personal fields cleared when starting a new card from an existing
-// family's branding — everything else (template, colors, logo,
+// family's branding; everything else (template, colors, logo,
 // background, company) carries over so every card in the family matches.
 const ADD_ON_RESET_FIELDS: (keyof CardData)[] = [
   "firstName",
@@ -222,7 +222,7 @@ export default function Builder() {
   const savedSession = loadBuilderSession(sessionKey);
 
   // An add-on card inherits its family's branding untouched and skips
-  // straight from entering the person's info to payment — no design step,
+  // straight from entering the person's info to payment: no design step,
   // no separate preview screen, since nothing about the design changes.
   const activeSteps = addOn ? STEPS.filter((s) => s.id === "details" || s.id === "payment" || s.id === "status") : STEPS;
 
@@ -257,18 +257,18 @@ export default function Builder() {
         JSON.stringify({ step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode })
       );
     } catch {
-      // Storage can be unavailable (private mode, quota) — losing resume
+      // Storage can be unavailable (private mode, quota); losing resume
       // state isn't worth surfacing an error over.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode]);
 
-  // Only a verified payment should hand out a working QR — generating and
+  // Only a verified payment should hand out a working QR: generating and
   // showing it while still "submitted"/"under_verification" would let
   // someone share it before their payment (or its reference number) has
   // actually been confirmed.
   const paymentVerified = liveStatus === "approved" || liveStatus === "provisioned";
-  // ?claim=1 marks this specifically as the provisioning QR — the one the
+  // ?claim=1 marks this specifically as the provisioning QR: the one the
   // customer scans with their own phone to receive the card, which is
   // very often a different device than whichever one filled out this
   // form. Holder.tsx looks for it once to mark that device as the owner,
@@ -310,7 +310,7 @@ export default function Builder() {
         const result = await getOrderStatus(paymentRef, card.email);
         if (!cancelled && result) setLiveStatus(result.status);
       } catch {
-        // Silently retry on the next tick — a transient network hiccup
+        // Silently retry on the next tick; a transient network hiccup
         // shouldn't interrupt the customer's view of the status page.
       }
     };
@@ -867,7 +867,7 @@ export default function Builder() {
               </div>
 
               {paymentMethod === "wise" ? (
-                /* Dummy Wise (USD) flow — no live payment provider wired up yet.
+                /* Dummy Wise (USD) flow: no live payment provider wired up yet.
                    PHP stays the authoritative charge; USD is display-only. */
                 <div className="border border-[var(--color-border)] p-8 flex flex-col items-center gap-4 mb-8">
                   <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">

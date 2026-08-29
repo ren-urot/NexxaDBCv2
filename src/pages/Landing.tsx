@@ -137,7 +137,7 @@ function PlanInfoTooltip({ items }: { items: { title: string; body: string }[] }
       {open && (
         <>
           {/* Touch devices have no hover, so tapping the button still needs
-              a way to dismiss the panel — this scrim only intercepts taps,
+              a way to dismiss the panel: this scrim only intercepts taps,
               never the mouseleave that already closes it on desktop. */}
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-8 z-20 w-72 max-w-[80vw] bg-[var(--color-background)] border border-[var(--color-border)] rounded-[14px] shadow-lg p-5 text-left space-y-4">
@@ -366,7 +366,7 @@ export default function Landing() {
                 <button
                   onClick={() => {
                     if (!isActive) return;
-                    // Starting a genuinely new order — any in-progress session
+                    // Starting a genuinely new order: any in-progress session
                     // from a previous purchase shouldn't leak into this one.
                     sessionStorage.removeItem("nexora_builder_session_v1");
                     navigate("/builder", { state: { plan: p.name.toLowerCase() } });

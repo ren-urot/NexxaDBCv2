@@ -23,7 +23,7 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
     quickActions: true,
     pdfDownload: true,
   },
-  // Everything in Pro (see PLANS in Landing.tsx) — the Business-only
+  // Everything in Pro (see PLANS in Landing.tsx): the Business-only
   // features (Add New Cards, Lead Generation, QR Transfer) aren't part of
   // this Builder-time gating at all, since they're post-purchase Card
   // Holder features gated separately by is_root, not by this Plan shape.

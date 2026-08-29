@@ -175,7 +175,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (!supabaseConfigured) {
-      // No backend to authenticate against — fall through to the dashboard,
+      // No backend to authenticate against, so fall through to the dashboard,
       // which already shows its own "backend not configured" warning.
       setAuthStatus("signed-in");
       return;
@@ -210,7 +210,7 @@ function AdminDashboard() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
     typeof Notification === "undefined" ? "unsupported" : Notification.permission
   );
-  // Actions this admin session just performed — used to skip alerting on our
+  // Actions this admin session just performed, used to skip alerting on our
   // own realtime echo (e.g. clicking Approve shouldn't also pop a "status
   // changed" notice for the action you just took yourself).
   const selfActionIds = useRef<Set<number>>(new Set());
@@ -240,7 +240,7 @@ function AdminDashboard() {
     };
   }, []);
 
-  // Live activity feed: new orders, status changes, and deletions — from
+  // Live activity feed: new orders, status changes, and deletions, from
   // this admin's own actions AND from any other admin using the dashboard
   // at the same time.
   useEffect(() => {

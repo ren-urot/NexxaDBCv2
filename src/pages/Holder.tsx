@@ -125,7 +125,7 @@ const CARD_SLOTS: { top: number; left: number; light?: boolean }[] = [
   { top: 71.7, left: 19 },
 ];
 
-// Matching case art with fewer slots for 2-4 cards — same top slot (dark,
+// Matching case art with fewer slots for 2-4 cards: same top slot (dark,
 // light text), fewer white slots below.
 const CARD_SLOTS_2 = CARD_SLOTS.slice(0, 2);
 const CARD_SLOTS_3 = CARD_SLOTS.slice(0, 3);
@@ -133,8 +133,8 @@ const CARD_SLOTS_4 = CARD_SLOTS.slice(0, 4);
 // The 1-card art has no dark backing slot, just a single white card.
 const CARD_SLOTS_1: { top: number; left: number; light?: boolean }[] = [{ top: 30, left: 19 }];
 
-// Shows the customer's actual card — same template, colors, logo, and
-// background as everywhere else in the app (Builder, Status page) — with
+// Shows the customer's actual card: same template, colors, logo, and
+// background as everywhere else in the app (Builder, Status page), with
 // a real, scannable QR overlaid on it, instead of a separate mockup design.
 function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -158,7 +158,7 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
   }, [qrUrl]);
 
   // The card itself is landscape (340×200), but the phone screen is
-  // portrait — rotate it on its side and scale it up so it fills the
+  // portrait, so rotate it on its side and scale it up so it fills the
   // screen properly, the way a wallet pass does, instead of sitting tiny
   // in a mostly-empty frame.
   const CARD_W = 340;
@@ -191,7 +191,7 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
             className="absolute top-1/2 bg-white rounded-md p-1 shadow-lg border border-gray-100"
             style={{
               // Local "right" maps to screen "up" once the card rotates 90°
-              // (rotating the whole card, not the phone) — 50 screen-px is
+              // (rotating the whole card, not the phone). 50 screen-px is
               // ~33 local px once the card's own SCALE (1.53x) is factored in.
               right: 8 + 50 / SCALE,
               transform: `translateY(-50%) scale(${QR_COUNTER_SCALE})`,
@@ -291,7 +291,7 @@ function LeadGate({
   );
 }
 
-// Owner-only panel (only ever shown on the device that created the order —
+// Owner-only panel (only ever shown on the device that created the order,
 // see deviceOwnership.ts) for toggling Lead Generation and reviewing/
 // exporting captured leads.
 function csvEscape(value: string): string {
@@ -347,7 +347,7 @@ function LeadSettingsPanel({
       await setLeadGenEnabled(orderCode, !enabled);
       onToggle(!enabled);
     } catch {
-      // Leave the switch as-is — the parent's state didn't change, so the
+      // Leave the switch as-is: the parent's state didn't change, so the
       // UI already reflects the failed toggle correctly.
     } finally {
       setToggling(false);
@@ -408,7 +408,7 @@ function LeadSettingsPanel({
           <div className="divide-y divide-white/10 border border-white/10 rounded-[10px] overflow-hidden">
             {leads.map((l) => (
               <div key={l.id} className="px-4 py-3">
-                <div className="text-white text-xs font-medium">{l.name || "—"}</div>
+                <div className="text-white text-xs font-medium">{l.name || "No name given"}</div>
                 <div className="text-white/50 text-[11px] mt-0.5">{l.contact}</div>
                 <div className="text-white/30 text-[10px] mt-0.5">{new Date(l.captured_at).toLocaleString()}</div>
               </div>
@@ -421,7 +421,7 @@ function LeadSettingsPanel({
 }
 
 // Business plan "QR Transfer": moves this device's local-only data
-// (collected cards + which orders it recognizes itself as owning — the
+// (collected cards + which orders it recognizes itself as owning; the
 // owned family cards themselves already live server-side and need no
 // transfer) to a new phone via a short-lived, one-time QR.
 function TransferPanel({ onClose }: { onClose: () => void }) {
@@ -430,8 +430,8 @@ function TransferPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     let cancelled = false;
-    // Only order codes travel through the transfer, not full card data — a
-    // year of collecting cards can mean dozens of them, each carrying an
+    // Only order codes travel through the transfer, not full card data.
+    // A year of collecting cards can mean dozens of them, each carrying an
     // uploaded logo as a base64 data URL, which blew straight through any
     // reasonable payload cap. The new phone re-fetches each card live by
     // its code instead, which is small regardless of how many cards there
@@ -474,7 +474,7 @@ function TransferPanel({ onClose }: { onClose: () => void }) {
 
         <p className="text-white/50 text-[11px] leading-relaxed text-center">
           On your new phone, open the camera and scan this QR within 15 minutes. It brings over every card you've
-          collected and reopens your own card's settings there — no cards are removed from this phone.
+          collected and reopens your own card's settings there. No cards are removed from this phone.
         </p>
       </div>
     </div>
@@ -490,8 +490,8 @@ export default function Holder() {
   const navState = location.state as { card?: CardData; orderCode?: string | null } | null;
 
   // The provisioning QR (built in Builder's Status step) carries this
-  // marker so the device that scans it — usually the customer's own
-  // phone, and very often NOT whichever device filled out the form — gets
+  // marker so the device that scans it (usually the customer's own
+  // phone, and very often NOT whichever device filled out the form) gets
   // recognized as the owner. The card's own embedded share QR (rendered
   // further down from the same /holder/:orderCode path) never carries it,
   // since that one's meant for other people to scan. Consumed once, then
@@ -507,7 +507,7 @@ export default function Holder() {
 
   // Two ways to land here: from Builder with the card already in navigation
   // state (in-app preview), or via the provisioning QR/link with only an
-  // order code in the URL (scanned fresh, e.g. from another device) — that
+  // order code in the URL (scanned fresh, e.g. from another device); that
   // path needs to fetch the card for itself.
   const [scannedCard, setScannedCard] = useState<CardData | null>(null);
   const [scannedState, setScannedState] = useState<ScannedState>("idle");
@@ -515,7 +515,7 @@ export default function Holder() {
   // Defaults to true (root) rather than false: the common case by far is a
   // standalone order with no family at all, and getting this wrong only
   // ever affects the card's own owner seeing their own controls flash
-  // briefly, never a third party — see get_public_card's is_root comment.
+  // briefly, never a third party; see get_public_card's is_root comment.
   const [isRootCard, setIsRootCard] = useState(true);
 
   useEffect(() => {
@@ -526,7 +526,7 @@ export default function Holder() {
       .then((result) => {
         if (cancelled) return;
         if (!result) {
-          // Order is gone server-side (e.g. admin deleted it) — but a
+          // Order is gone server-side (e.g. admin deleted it), but a
           // device that already received this card once shouldn't lose it.
           // Fall back to the last-known copy instead of "not found".
           const cached = getCachedCard(params.orderCode!);
@@ -558,7 +558,7 @@ export default function Holder() {
       })
       .catch(() => {
         if (cancelled) return;
-        // Offline / network failure — same fallback as a "not found", since
+        // Offline / network failure: same fallback as a "not found", since
         // an installed standalone app has to keep working without a
         // connection, not just fail with an error screen.
         const cached = getCachedCard(params.orderCode!);
@@ -595,7 +595,7 @@ export default function Holder() {
   // skips entirely once navState.card is present). The owner's Lead
   // Generation toggle needs the real lead_gen_enabled value in preview
   // mode too, so it doesn't just default to "off" every time they preview
-  // from Builder — fetch it separately there.
+  // from Builder, so fetch it separately there.
   useEffect(() => {
     if (!orderCode || !navState?.card) return;
     let cancelled = false;
@@ -606,7 +606,7 @@ export default function Holder() {
         setIsRootCard(result.is_root);
       })
       .catch(() => {
-        // Non-critical — the toggle just stays at its default until a
+        // Non-critical: the toggle just stays at its default until a
         // real standalone visit picks up the actual value.
       });
     return () => {
@@ -616,7 +616,7 @@ export default function Holder() {
   }, [orderCode]);
 
   // Pull-to-refresh reloads the whole app mid-gesture on an installed
-  // standalone card — jarring since there's nothing to "refresh" here, just
+  // standalone card, which is jarring since there's nothing to "refresh" here, just
   // the one card. overscroll-behavior only suppresses the native gesture
   // when set on the document's actual scrolling element, not an arbitrary
   // nested div, so this has to reach document.documentElement/body directly
@@ -682,7 +682,7 @@ export default function Holder() {
   const familyRoot = family.find((f) => f.is_root);
   const familySize = family.length > 0 ? family.length : hasRealCard ? 1 : 0;
   // Business-only, and only for the original purchaser's own device on
-  // their own card — an add-on team member's card is never root, so it
+  // their own card: an add-on team member's card is never root, so it
   // never gets this button even though it's part of the same family.
   // isOwnerDevice is required too: without it, anyone who just scanned
   // someone else's card would see (and could use) an "add a new card"
@@ -725,7 +725,7 @@ export default function Holder() {
         return;
       }
       // Lead Generation must gate every way a card can be picked up, not
-      // just a cold link visit — the in-app scanner was fetching and
+      // just a cold link visit: the in-app scanner was fetching and
       // saving the card straight away, skipping the owner's contact-info
       // requirement entirely. Same exemptions as the direct-link gate: the
       // owner's own device, and anyone who's already unlocked this card.

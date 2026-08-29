@@ -12,7 +12,7 @@ export const supabase = supabaseConfigured
       // call explicitly opts into it with .select(). Without this, whether
       // a mutation implicitly returns the row (and so gets checked against
       // the SELECT policy, not just the INSERT/UPDATE one) is left up to
-      // the server's own default rather than this client's code — the anon
+      // the server's own default rather than this client's code: the anon
       // role here only has an INSERT policy, so a mutation call unlucky
       // enough to trigger that default fails RLS on the return, not the
       // write itself.
@@ -124,7 +124,7 @@ export async function updateOrderStatus(id: number, status: PaymentStatus): Prom
 export async function deleteOrder(id: number): Promise<void> {
   if (!supabase) throw new Error("Supabase is not configured");
   // count: "exact" so a delete blocked by RLS (which affects 0 rows rather
-  // than erroring — a real Postgres RLS gotcha, not a Supabase quirk) is
+  // than erroring, a real Postgres RLS gotcha, not a Supabase quirk) is
   // caught here instead of silently reporting success to the caller.
   const { error, count } = await supabase.from("nexora_orders").delete({ count: "exact" }).eq("id", id);
   if (error) throw error;
@@ -152,7 +152,7 @@ export interface PublicCardLookup {
   card: CardData;
   status: PaymentStatus;
   lead_gen_enabled: boolean;
-  // True only for the original order in a card family — never true for an
+  // True only for the original order in a card family, never true for an
   // add-on card added via "Add New Cards". Gates the Business-only
   // features (Add New Cards, Lead Generation, QR Transfer) to the
   // original Business plan purchaser only; a team member's card only
@@ -188,7 +188,7 @@ export async function getBusinessCards(orderCode: string): Promise<BusinessCardE
 }
 
 // Toggles Business plan "Lead Generation" for an order. Same order-code-
-// as-credential trust model as every other owner-only action in this app —
+// as-credential trust model as every other owner-only action in this app:
 // there's no login for card owners, so knowing the order_code already
 // stands in for proof of ownership everywhere else too.
 export async function setLeadGenEnabled(orderCode: string, enabled: boolean): Promise<void> {
@@ -198,7 +198,7 @@ export async function setLeadGenEnabled(orderCode: string, enabled: boolean): Pr
 }
 
 // Submits a scanner's contact info to unlock a lead-gated card. SECURITY
-// DEFINER — nexora_leads has no direct-table policies at all, anon or
+// DEFINER: nexora_leads has no direct-table policies at all, anon or
 // authenticated, so this RPC is the only way a lead ever gets written.
 export async function submitLead(orderCode: string, contact: string, name = ""): Promise<void> {
   if (!supabase) return;
@@ -223,7 +223,7 @@ export async function getLeads(orderCode: string): Promise<LeadRow[]> {
   return (data ?? []) as LeadRow[];
 }
 
-// Business plan: "QR Transfer" — moves a Card Holder's device-local data
+// Business plan "QR Transfer": moves a Card Holder's device-local data
 // (collected cards + which orders this device owns) to a new phone via a
 // short-lived, one-time token. See schema.sql for why no order_code or
 // account is involved: it's a bearer token for a device's local data, not
@@ -236,7 +236,7 @@ export async function createTransfer(payload: unknown): Promise<string> {
 }
 
 // Returns null if the token is unknown, already used, or expired (15
-// minutes) — claim_transfer deletes the row as part of reading it, so a
+// minutes); claim_transfer deletes the row as part of reading it, so a
 // token only ever works once.
 export async function claimTransfer<T>(token: string): Promise<T | null> {
   if (!supabase) return null;
@@ -246,7 +246,7 @@ export async function claimTransfer<T>(token: string): Promise<T | null> {
 }
 
 // Landing page "Stay Connected" newsletter form. Independent of the
-// per-card lead system (nexora_leads) — these are site-wide inquiries for
+// per-card lead system (nexora_leads): these are site-wide inquiries for
 // NexxaDBC itself. Resubmitting the same email is a silent no-op.
 export async function subscribeEmail(email: string): Promise<void> {
   if (!supabase) return;
@@ -261,7 +261,7 @@ export interface OrderEventHandlers {
 }
 
 // Powers the Admin dashboard's live activity feed: new orders, status
-// changes, and deletions — useful across multiple admins working the same
+// changes, and deletions, useful across multiple admins working the same
 // dashboard at once, not just for catching brand-new submissions.
 export function subscribeToOrderEvents(handlers: OrderEventHandlers): () => void {
   if (!supabase) return () => {};

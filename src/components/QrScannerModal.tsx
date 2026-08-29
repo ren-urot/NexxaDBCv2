@@ -7,7 +7,7 @@ interface Props {
   onClose: () => void;
 }
 
-// getUserMedia rejects with a DOMException whose name tells us why — worth
+// getUserMedia rejects with a DOMException whose name tells us why, worth
 // distinguishing since "no camera" and "permission denied" need different
 // instructions, and a denied permission usually needs the user to go
 // change a setting outside this page entirely, not just retry.

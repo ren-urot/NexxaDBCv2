@@ -11,7 +11,7 @@ interface BeforeInstallPromptEvent extends Event {
 declare global {
   interface Window {
     // Captured by an inline script in index.html, before any React module
-    // loads — see the comment there for why.
+    // loads. See the comment there for why.
     __deferredInstallPrompt?: BeforeInstallPromptEvent;
   }
 }
@@ -36,7 +36,7 @@ const FEATURES: { icon: typeof WifiOff; title: string; body: string }[] = [
 // security boundary everywhere), and Chrome adds a second layer on top of
 // that: it only fires beforeinstallprompt once its own engagement
 // heuristics are satisfied, which a first-ever visit usually doesn't meet.
-// This popup shows regardless, right when the card opens — the native
+// This popup shows regardless, right when the card opens; the native
 // one-tap dialog is only actually triggered from the Install button here
 // (browsers expect .prompt() to follow a real user gesture anyway), and
 // otherwise Install falls back to the manual path (⋮ menu / iOS Share

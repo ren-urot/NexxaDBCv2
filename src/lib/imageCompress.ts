@@ -1,5 +1,5 @@
 // Uploaded logos/backgrounds were going straight into the card as raw file
-// data with no size limit — a multi-MB phone photo landed in CardData
+// data with no size limit: a multi-MB phone photo landed in CardData
 // exactly as picked. That's what blew out QR Transfer's payload cap (see
 // Holder.tsx/TransferClaim.tsx) and bloats every order row in the DB. This
 // re-encodes uploads as WebP (keeps alpha for logo transparency, much
@@ -77,7 +77,7 @@ export async function compressImageToDataUrl(
       if (estimateBytes(dataUrl) <= maxBytes) return dataUrl;
     }
   }
-  // Couldn't hit the target even at the smallest size/quality tried —
+  // Couldn't hit the target even at the smallest size/quality tried, so
   // return the smallest one produced rather than failing the upload.
   return smallest;
 }

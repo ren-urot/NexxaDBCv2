@@ -1,6 +1,6 @@
 import type { CardData, PaymentStatus } from "../types";
 
-// Backs the "Works Offline" promise the install prompt makes — without
+// Backs the "Works Offline" promise the install prompt makes. Without
 // this, a device with an installed card had no actual offline data at
 // all, just a cached app shell with nothing to render once a real fetch
 // failed. Also means an already-delivered card keeps working from here on
@@ -20,7 +20,7 @@ export function cacheCard(orderCode: string, data: CachedCard): void {
   try {
     localStorage.setItem(PREFIX + orderCode, JSON.stringify(data));
   } catch {
-    // Storage can be unavailable (private mode, quota) — losing the
+    // Storage can be unavailable (private mode, quota); losing the
     // offline fallback for this one card isn't worth an error over.
   }
 }
