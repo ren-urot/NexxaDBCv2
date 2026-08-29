@@ -24,6 +24,16 @@ import qr499 from "../assets/qr-499.png";
 import jsPDF from "jspdf";
 import { formatUsd, phpToUsd, PHP_PER_USD } from "../lib/currency";
 import QRCode from "qrcode";
+import bgTemplate1 from "../assets/backgrounds/bg-template-1.png";
+import bgTemplate2 from "../assets/backgrounds/bg-template-2.png";
+import bgTemplate3 from "../assets/backgrounds/bg-template-3.png";
+import bgTemplate4 from "../assets/backgrounds/bg-template-4.png";
+import bgTemplate5 from "../assets/backgrounds/bg-template-5.png";
+import bgTemplate6 from "../assets/backgrounds/bg-template-6.png";
+import bgTemplate7 from "../assets/backgrounds/bg-template-7.png";
+import bgTemplate8 from "../assets/backgrounds/bg-template-8.png";
+import bgTemplate9 from "../assets/backgrounds/bg-template-9.png";
+import bgTemplate10 from "../assets/backgrounds/bg-template-10.png";
 
 const EMPTY_CARD: CardData = {
   template: "corporate",
@@ -59,6 +69,22 @@ const BACKGROUNDS: { id: BackgroundStyle; label: string }[] = [
   { id: "dots", label: "Dots" },
   { id: "diagonal", label: "Diagonal" },
   { id: "gradient", label: "Gradient" },
+];
+
+// Pro/Business background templates — selecting one just pre-fills the
+// existing "custom" background mechanism (background: "custom" +
+// backgroundImageUrl) rather than needing a new BackgroundStyle at all.
+const BG_TEMPLATES: { id: string; src: string }[] = [
+  { id: "bg-template-1", src: bgTemplate1 },
+  { id: "bg-template-2", src: bgTemplate2 },
+  { id: "bg-template-3", src: bgTemplate3 },
+  { id: "bg-template-4", src: bgTemplate4 },
+  { id: "bg-template-5", src: bgTemplate5 },
+  { id: "bg-template-6", src: bgTemplate6 },
+  { id: "bg-template-7", src: bgTemplate7 },
+  { id: "bg-template-8", src: bgTemplate8 },
+  { id: "bg-template-9", src: bgTemplate9 },
+  { id: "bg-template-10", src: bgTemplate10 },
 ];
 
 const STEPS: { id: BuilderStep; label: string }[] = [
@@ -668,6 +694,24 @@ export default function Builder() {
                         }`}
                       >
                         {b.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-2">
+                    Background Templates
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 mb-4">
+                    {BG_TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setCard((c) => ({ ...c, background: "custom", backgroundImageUrl: t.src }))}
+                        className={`aspect-[3.5/2] border overflow-hidden transition-colors ${
+                          card.background === "custom" && card.backgroundImageUrl === t.src
+                            ? "border-[var(--color-accent)]"
+                            : "border-[var(--color-border)] hover:border-[var(--color-foreground)]"
+                        }`}
+                      >
+                        <img src={t.src} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
