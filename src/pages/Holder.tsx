@@ -23,6 +23,7 @@ import {
   type LeadRow,
   setLeadGenEnabled,
   createTransfer,
+  getErrorMessage,
 } from "../lib/supabase";
 import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders } from "../lib/deviceOwnership";
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
@@ -237,7 +238,7 @@ function LeadGate({
       markUnlockedCard(orderCode);
       onUnlock();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(getErrorMessage(err, "Something went wrong. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -436,7 +437,7 @@ function TransferPanel({ onClose }: { onClose: () => void }) {
         if (!cancelled) setQrDataUrl(url);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Couldn't start the transfer. Please try again.");
+        if (!cancelled) setError(getErrorMessage(err, "Couldn't start the transfer. Please try again."));
       });
     return () => {
       cancelled = true;

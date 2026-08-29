@@ -936,7 +936,7 @@ export default function Builder() {
                       markOwnedOrder(code);
                       goNext();
                     } catch (err) {
-                      setSubmitError(err instanceof Error ? err.message : "Failed to submit payment. Please try again.");
+                      setSubmitError(getErrorMessage(err, "Failed to submit payment. Please try again."));
                     } finally {
                       setSubmitting(false);
                     }
