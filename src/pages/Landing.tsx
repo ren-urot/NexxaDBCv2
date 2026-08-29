@@ -122,7 +122,11 @@ const PLANS = [
 function PlanInfoTooltip({ items }: { items: { title: string; body: string }[] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="absolute top-5 right-5 z-10">
+    <div
+      className="absolute top-5 right-5 z-10"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Plan feature details"
@@ -132,6 +136,9 @@ function PlanInfoTooltip({ items }: { items: { title: string; body: string }[] }
       </button>
       {open && (
         <>
+          {/* Touch devices have no hover, so tapping the button still needs
+              a way to dismiss the panel — this scrim only intercepts taps,
+              never the mouseleave that already closes it on desktop. */}
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-8 z-20 w-72 max-w-[80vw] bg-[var(--color-background)] border border-[var(--color-border)] rounded-[14px] shadow-lg p-5 text-left space-y-4">
             {items.map((it) => (
