@@ -265,7 +265,14 @@ export default function Builder() {
   // someone share it before their payment (or its reference number) has
   // actually been confirmed.
   const paymentVerified = liveStatus === "approved" || liveStatus === "provisioned";
-  const publicCardUrl = orderCode && paymentVerified ? `${window.location.origin}/holder/${orderCode}` : null;
+  // ?claim=1 marks this specifically as the provisioning QR — the one the
+  // customer scans with their own phone to receive the card, which is
+  // very often a different device than whichever one filled out this
+  // form. Holder.tsx looks for it once to mark that device as the owner,
+  // then strips it from the URL. The card's own embedded share QR (built
+  // separately in Holder.tsx from the same /holder/:orderCode path) never
+  // gets this marker, since that one's handed to other people on purpose.
+  const publicCardUrl = orderCode && paymentVerified ? `${window.location.origin}/holder/${orderCode}?claim=1` : null;
 
   useEffect(() => {
     if (!publicCardUrl) {

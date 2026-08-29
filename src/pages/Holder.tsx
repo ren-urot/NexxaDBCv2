@@ -24,7 +24,7 @@ import {
   setLeadGenEnabled,
   createTransfer,
 } from "../lib/supabase";
-import { isOwnedOrder, isUnlockedCard, markUnlockedCard, getOwnedOrders } from "../lib/deviceOwnership";
+import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders } from "../lib/deviceOwnership";
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
 
 const BASE_CARD: CardData = {
@@ -462,6 +462,22 @@ export default function Holder() {
   const location = useLocation();
   const params = useParams<{ orderCode?: string }>();
   const navState = location.state as { card?: CardData; orderCode?: string | null } | null;
+
+  // The provisioning QR (built in Builder's Status step) carries this
+  // marker so the device that scans it — usually the customer's own
+  // phone, and very often NOT whichever device filled out the form — gets
+  // recognized as the owner. The card's own embedded share QR (rendered
+  // further down from the same /holder/:orderCode path) never carries it,
+  // since that one's meant for other people to scan. Consumed once, then
+  // stripped from the address bar so copying the URL afterward doesn't
+  // carry the marker along.
+  useEffect(() => {
+    if (!params.orderCode) return;
+    if (new URLSearchParams(location.search).get("claim") !== "1") return;
+    markOwnedOrder(params.orderCode);
+    navigate(`/holder/${params.orderCode}`, { replace: true, state: navState });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.orderCode, location.search]);
 
   // Two ways to land here: from Builder with the card already in navigation
   // state (in-app preview), or via the provisioning QR/link with only an
