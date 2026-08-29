@@ -26,6 +26,7 @@ import {
 } from "../lib/supabase";
 import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders } from "../lib/deviceOwnership";
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
+import { cacheCard, getCachedCard } from "../lib/cardCache";
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -500,6 +501,17 @@ export default function Holder() {
       .then((result) => {
         if (cancelled) return;
         if (!result) {
+          // Order is gone server-side (e.g. admin deleted it) — but a
+          // device that already received this card once shouldn't lose it.
+          // Fall back to the last-known copy instead of "not found".
+          const cached = getCachedCard(params.orderCode!);
+          if (cached) {
+            setScannedCard(cached.card);
+            setLeadGenEnabledState(cached.lead_gen_enabled);
+            setIsRootCard(cached.is_root);
+            setScannedState("ready");
+            return;
+          }
           setScannedState("not-found");
           return;
         }
@@ -512,9 +524,27 @@ export default function Holder() {
         setLeadGenEnabledState(result.lead_gen_enabled);
         setIsRootCard(result.is_root);
         setScannedState("ready");
+        cacheCard(params.orderCode!, {
+          card: result.card,
+          status: result.status,
+          lead_gen_enabled: result.lead_gen_enabled,
+          is_root: result.is_root,
+        });
       })
       .catch(() => {
-        if (!cancelled) setScannedState("error");
+        if (cancelled) return;
+        // Offline / network failure — same fallback as a "not found", since
+        // an installed standalone app has to keep working without a
+        // connection, not just fail with an error screen.
+        const cached = getCachedCard(params.orderCode!);
+        if (cached) {
+          setScannedCard(cached.card);
+          setLeadGenEnabledState(cached.lead_gen_enabled);
+          setIsRootCard(cached.is_root);
+          setScannedState("ready");
+          return;
+        }
+        setScannedState("error");
       });
     return () => {
       cancelled = true;
@@ -559,6 +589,26 @@ export default function Holder() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderCode]);
+
+  // Pull-to-refresh reloads the whole app mid-gesture on an installed
+  // standalone card — jarring since there's nothing to "refresh" here, just
+  // the one card. overscroll-behavior only suppresses the native gesture
+  // when set on the document's actual scrolling element, not an arbitrary
+  // nested div, so this has to reach document.documentElement/body directly
+  // rather than living in JSX className.
+  useEffect(() => {
+    if (!isStandalone) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overscrollBehaviorY;
+    const prevBody = body.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = "none";
+    body.style.overscrollBehaviorY = "none";
+    return () => {
+      html.style.overscrollBehaviorY = prevHtml;
+      body.style.overscrollBehaviorY = prevBody;
+    };
+  }, [isStandalone]);
 
   const [tab, setTab] = useState<Tab>(params.orderCode ? "my-card" : "my-cards");
   const [holderOpen, setHolderOpen] = useState(false);
@@ -973,11 +1023,11 @@ export default function Holder() {
   if (isStandalone) {
     return (
       <div
-        className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col overscroll-none"
+        className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         <InstallPrompt />
-        <div className="flex-1 overscroll-none">{content}</div>
+        <div className="flex-1">{content}</div>
         <button
           onClick={() => navigate("/")}
           className="text-[9px] tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors py-3 text-center"
