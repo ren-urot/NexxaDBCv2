@@ -443,4 +443,10 @@ as $$
   select s.email, s.subscribed_at from nexora_subscribers s order by s.subscribed_at desc;
 $$;
 
+-- Postgres grants EXECUTE on every newly created function to PUBLIC (which
+-- anon inherits) by default — granting to authenticated alone does NOT
+-- revoke that. Without this explicit revoke, the subscriber list (email
+-- addresses) would be readable by anyone, defeating the whole point of
+-- restricting this one function to signed-in admins.
+revoke execute on function get_subscribers() from public;
 grant execute on function get_subscribers() to authenticated;
