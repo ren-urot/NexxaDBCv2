@@ -410,7 +410,7 @@ export default function Landing() {
                 </button>
               </li>
               <li>
-                <a href="mailto:hello@nexxadbc.com" className="hover:text-[var(--color-accent)] transition-colors">
+                <a href="mailto:ren@nexxabyte.com" className="hover:text-[var(--color-accent)] transition-colors">
                   Contact Us
                 </a>
               </li>
