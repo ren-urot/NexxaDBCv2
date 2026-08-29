@@ -18,6 +18,7 @@ import Logo from "../components/Logo";
 import { resolvePlan } from "../data/plans";
 import { createOrder, getOrderStatus, supabaseConfigured, getErrorMessage } from "../lib/supabase";
 import { markOwnedOrder } from "../lib/deviceOwnership";
+import { compressImageToDataUrl } from "../lib/imageCompress";
 import html2canvas from "html2canvas-pro";
 import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
@@ -25,16 +26,16 @@ import qr999 from "../assets/qr-999.png";
 import jsPDF from "jspdf";
 import { formatUsd, phpToUsd, PHP_PER_USD } from "../lib/currency";
 import QRCode from "qrcode";
-import bgTemplate1 from "../assets/backgrounds/bg-template-1.png";
-import bgTemplate2 from "../assets/backgrounds/bg-template-2.png";
-import bgTemplate3 from "../assets/backgrounds/bg-template-3.png";
-import bgTemplate4 from "../assets/backgrounds/bg-template-4.png";
-import bgTemplate5 from "../assets/backgrounds/bg-template-5.png";
-import bgTemplate6 from "../assets/backgrounds/bg-template-6.png";
-import bgTemplate7 from "../assets/backgrounds/bg-template-7.png";
-import bgTemplate8 from "../assets/backgrounds/bg-template-8.png";
-import bgTemplate9 from "../assets/backgrounds/bg-template-9.png";
-import bgTemplate10 from "../assets/backgrounds/bg-template-10.png";
+import bgTemplate1 from "../assets/backgrounds/bg-template-1.webp";
+import bgTemplate2 from "../assets/backgrounds/bg-template-2.webp";
+import bgTemplate3 from "../assets/backgrounds/bg-template-3.webp";
+import bgTemplate4 from "../assets/backgrounds/bg-template-4.webp";
+import bgTemplate5 from "../assets/backgrounds/bg-template-5.webp";
+import bgTemplate6 from "../assets/backgrounds/bg-template-6.webp";
+import bgTemplate7 from "../assets/backgrounds/bg-template-7.webp";
+import bgTemplate8 from "../assets/backgrounds/bg-template-8.webp";
+import bgTemplate9 from "../assets/backgrounds/bg-template-9.webp";
+import bgTemplate10 from "../assets/backgrounds/bg-template-10.webp";
 
 const EMPTY_CARD: CardData = {
   template: "corporate",
@@ -239,6 +240,8 @@ export default function Builder() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [compressingLogo, setCompressingLogo] = useState(false);
+  const [compressingBackground, setCompressingBackground] = useState(false);
   const [liveStatus, setLiveStatus] = useState<PaymentStatus>(savedSession?.liveStatus ?? "submitted");
   const [orderCode, setOrderCode] = useState<string | null>(savedSession?.orderCode ?? null);
   const [provisioningQrDataUrl, setProvisioningQrDataUrl] = useState<string | null>(null);
@@ -345,33 +348,30 @@ export default function Builder() {
   const goNext = () => setStep(activeSteps[stepIndex + 1].id);
   const goBack = () => setStep(activeSteps[stepIndex - 1].id);
 
-  // Data URLs (not blob: object URLs) — blob URLs only resolve in the tab
-  // that created them, so they broke the moment card state got persisted
-  // to sessionStorage, saved to the database, or viewed on another device
-  // via the shared QR link. Data URLs are self-contained strings that
-  // survive all of that.
-  const readAsDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-
   const handleLogoUpload = async (file: File | undefined) => {
     if (!file) return;
     if (file.type !== "image/png") {
       alert("Logo must be a PNG file.");
       return;
     }
-    const url = await readAsDataUrl(file);
-    set("logoUrl")(url);
+    setCompressingLogo(true);
+    try {
+      const url = await compressImageToDataUrl(file, { maxBytes: 8 * 1024, maxDimension: 256 });
+      set("logoUrl")(url);
+    } finally {
+      setCompressingLogo(false);
+    }
   };
 
   const handleBackgroundUpload = async (file: File | undefined) => {
     if (!file) return;
-    const url = await readAsDataUrl(file);
-    setCard((c) => ({ ...c, background: "custom", backgroundImageUrl: url }));
+    setCompressingBackground(true);
+    try {
+      const url = await compressImageToDataUrl(file, { maxBytes: 35 * 1024, maxDimension: 1200 });
+      setCard((c) => ({ ...c, background: "custom", backgroundImageUrl: url }));
+    } finally {
+      setCompressingBackground(false);
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -662,17 +662,24 @@ export default function Builder() {
                       </span>
                     )}
                   </div>
-                  <label className="flex items-center gap-3 border border-dashed border-[var(--color-border)] px-4 py-3 cursor-pointer hover:border-[var(--color-foreground)] transition-colors w-fit">
+                  <label
+                    className={`flex items-center gap-3 border border-dashed border-[var(--color-border)] px-4 py-3 transition-colors w-fit ${
+                      compressingLogo ? "opacity-50 pointer-events-none" : "cursor-pointer hover:border-[var(--color-foreground)]"
+                    }`}
+                  >
                     {card.logoUrl ? (
                       <img src={card.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
                     ) : (
                       <Upload size={14} className="text-[var(--color-muted-fg)]" />
                     )}
-                    <span className="text-xs text-[var(--color-muted-fg)]">{card.logoUrl ? "Replace logo" : "Upload logo"}</span>
+                    <span className="text-xs text-[var(--color-muted-fg)]">
+                      {compressingLogo ? "Optimizing…" : card.logoUrl ? "Replace logo" : "Upload logo"}
+                    </span>
                     <input
                       type="file"
                       accept=".png,image/png"
                       className="hidden"
+                      disabled={compressingLogo}
                       onChange={(e) => handleLogoUpload(e.target.files?.[0])}
                     />
                   </label>
@@ -724,10 +731,14 @@ export default function Builder() {
                     ))}
                   </div>
                   <label
-                    className={`flex items-center gap-3 border border-dashed px-4 py-3 cursor-pointer transition-colors w-fit ${
-                      card.background === "custom"
-                        ? "border-[var(--color-accent)]"
-                        : "border-[var(--color-border)] hover:border-[var(--color-foreground)]"
+                    className={`flex items-center gap-3 border border-dashed px-4 py-3 transition-colors w-fit ${
+                      compressingBackground
+                        ? "opacity-50 pointer-events-none border-[var(--color-border)]"
+                        : `cursor-pointer ${
+                            card.background === "custom"
+                              ? "border-[var(--color-accent)]"
+                              : "border-[var(--color-border)] hover:border-[var(--color-foreground)]"
+                          }`
                     }`}
                   >
                     {card.backgroundImageUrl ? (
@@ -736,12 +747,13 @@ export default function Builder() {
                       <Upload size={14} className="text-[var(--color-muted-fg)]" />
                     )}
                     <span className={`text-xs ${card.background === "custom" ? "text-[var(--color-accent)]" : "text-[var(--color-muted-fg)]"}`}>
-                      {card.backgroundImageUrl ? "Replace custom background" : "Upload custom background"}
+                      {compressingBackground ? "Optimizing…" : card.backgroundImageUrl ? "Replace custom background" : "Upload custom background"}
                     </span>
                     <input
                       type="file"
                       accept="image/*"
                       className="hidden"
+                      disabled={compressingBackground}
                       onChange={(e) => handleBackgroundUpload(e.target.files?.[0])}
                     />
                   </label>
