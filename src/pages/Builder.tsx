@@ -21,6 +21,7 @@ import { markOwnedOrder } from "../lib/deviceOwnership";
 import html2canvas from "html2canvas-pro";
 import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
+import qr999 from "../assets/qr-999.png";
 import jsPDF from "jspdf";
 import { formatUsd, phpToUsd, PHP_PER_USD } from "../lib/currency";
 import QRCode from "qrcode";
@@ -871,7 +872,7 @@ export default function Builder() {
                     Scan with GCash, Maya, or your banking app
                   </div>
                   <img
-                    src={effectivePrice === 199 ? qr199 : qr499}
+                    src={effectivePrice === 199 ? qr199 : effectivePrice === 999 ? qr999 : qr499}
                     alt={`InstaPay QR code for ₱${effectivePrice} payment`}
                     className="w-44 h-44 object-contain border border-[var(--color-border)]"
                   />
