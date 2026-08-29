@@ -398,3 +398,49 @@ end;
 $$;
 
 grant execute on function claim_transfer(text) to anon, authenticated;
+
+-- Landing page "Stay Connected" newsletter form. Independent of
+-- nexora_leads (which is scoped to one card's family via order_id) —
+-- these are site-wide inquiries for NexxaDBC itself, not tied to any one
+-- customer's card, so they get their own table rather than a fake/shared
+-- order_id.
+create table if not exists nexora_subscribers (
+  id bigint generated always as identity primary key,
+  email text not null unique,
+  subscribed_at timestamptz not null default now()
+);
+
+-- RLS with no policies, same as nexora_leads: all access goes through the
+-- functions below, not the table directly.
+alter table nexora_subscribers enable row level security;
+
+-- on conflict do nothing: resubmitting the same email (e.g. double-
+-- clicking Subscribe) is a silent no-op, not an error the visitor sees.
+create or replace function subscribe_email(p_email text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into nexora_subscribers (email) values (p_email)
+  on conflict (email) do nothing;
+end;
+$$;
+
+grant execute on function subscribe_email(text) to anon, authenticated;
+
+-- Read access mirrors the Admin dashboard's own orders policy: signed-in
+-- only. No UI reads this yet — query it directly in the SQL Editor, or
+-- from Admin later if that's wired up — but the function exists now so
+-- there's a real access path instead of only ever having the raw table.
+create or replace function get_subscribers()
+returns table (email text, subscribed_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  select s.email, s.subscribed_at from nexora_subscribers s order by s.subscribed_at desc;
+$$;
+
+grant execute on function get_subscribers() to authenticated;

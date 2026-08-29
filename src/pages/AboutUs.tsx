@@ -70,8 +70,8 @@ export default function AboutUs() {
             >
               Create Your Card
             </button>
-            <a href="mailto:hello@nexxadbc.com" className="text-sm text-[var(--color-muted-fg)] hover:text-[var(--color-accent)] transition-colors">
-              Or say hello: hello@nexxadbc.com
+            <a href="mailto:inquiry@nexxabyte.com" className="text-sm text-[var(--color-muted-fg)] hover:text-[var(--color-accent)] transition-colors">
+              Or say hello: inquiry@nexxabyte.com
             </a>
           </div>
         </div>

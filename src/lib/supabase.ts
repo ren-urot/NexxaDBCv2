@@ -245,6 +245,15 @@ export async function claimTransfer<T>(token: string): Promise<T | null> {
   return (data ?? null) as T | null;
 }
 
+// Landing page "Stay Connected" newsletter form. Independent of the
+// per-card lead system (nexora_leads) — these are site-wide inquiries for
+// NexxaDBC itself. Resubmitting the same email is a silent no-op.
+export async function subscribeEmail(email: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("subscribe_email", { p_email: email });
+  if (error) throw error;
+}
+
 export interface OrderEventHandlers {
   onInsert?: (row: OrderRow) => void;
   onUpdate?: (row: OrderRow) => void;

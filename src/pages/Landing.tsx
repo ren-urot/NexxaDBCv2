@@ -11,6 +11,7 @@ import iconRepeat from "../assets/icon-repeat.svg";
 import iconCheck from "../assets/icon-check.svg";
 import iconPeso from "../assets/icon-peso.svg";
 import { formatUsd } from "../lib/currency";
+import { subscribeEmail } from "../lib/supabase";
 
 const STEPS = [
   { num: "01", label: "Create", icon: iconCaptions, body: "Select a template and enter your business information." },
@@ -171,12 +172,23 @@ export default function Landing() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    setSubscribed(true);
-    setEmail("");
+    if (!email || subscribing) return;
+    setSubscribing(true);
+    setSubscribeError(null);
+    try {
+      await subscribeEmail(email);
+      setSubscribed(true);
+      setEmail("");
+    } catch {
+      setSubscribeError("Something went wrong. Please try again.");
+    } finally {
+      setSubscribing(false);
+    }
   };
 
   return (
@@ -434,10 +446,12 @@ export default function Landing() {
                 />
                 <button
                   type="submit"
-                  className="bg-[var(--color-accent)] text-white rounded-[7px] py-2.5 font-medium hover:opacity-90 transition-opacity"
+                  disabled={subscribing}
+                  className="bg-[var(--color-accent)] text-white rounded-[7px] py-2.5 font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
                 >
-                  Subscribe
+                  {subscribing ? "Subscribing…" : "Subscribe"}
                 </button>
+                {subscribeError && <p className="text-xs text-red-500">{subscribeError}</p>}
               </form>
             )}
           </div>
