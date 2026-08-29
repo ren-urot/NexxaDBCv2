@@ -23,8 +23,25 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
     quickActions: true,
     pdfDownload: true,
   },
+  // Everything in Pro (see PLANS in Landing.tsx) — the Business-only
+  // features (Add New Cards, Lead Generation, QR Transfer) aren't part of
+  // this Builder-time gating at all, since they're post-purchase Card
+  // Holder features gated separately by is_root, not by this Plan shape.
+  business: {
+    id: "business",
+    name: "Business",
+    price: 999,
+    templates: ["corporate", "professional", "modern", "minimal", "executive", "creative"],
+    customColor: true,
+    logoUpload: true,
+    customBackground: true,
+    quickActions: true,
+    pdfDownload: true,
+  },
 };
 
 export function resolvePlan(id: unknown): Plan {
-  return id === "basic" ? PLAN_CONFIG.basic : PLAN_CONFIG.pro;
+  if (id === "basic") return PLAN_CONFIG.basic;
+  if (id === "business") return PLAN_CONFIG.business;
+  return PLAN_CONFIG.pro;
 }

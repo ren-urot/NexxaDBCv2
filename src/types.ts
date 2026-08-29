@@ -1,6 +1,6 @@
 export type CardTheme = "corporate" | "professional" | "modern" | "minimal" | "executive" | "creative";
 
-export type PlanId = "basic" | "pro";
+export type PlanId = "basic" | "pro" | "business";
 
 export interface Plan {
   id: PlanId;

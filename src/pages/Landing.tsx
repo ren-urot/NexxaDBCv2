@@ -86,7 +86,6 @@ const PLANS = [
     desc: "For teams & companies",
     price: 999,
     cta: "outline" as const,
-    active: false,
     features: [
       "Everything in Pro",
       "Multiple Team Members (Up to 5 Cards)",
@@ -282,7 +281,7 @@ export default function Landing() {
         </p>
         <div className="max-w-[1200px] mx-auto grid md:grid-cols-3 gap-8 items-stretch">
           {PLANS.map((p) => {
-            const isActive = p.active !== false;
+            const isActive = (p as { active?: boolean }).active !== false;
             return (
               <div
                 key={p.name}
