@@ -359,7 +359,10 @@ as $$
 declare
   v_token text;
 begin
-  if pg_column_size(p_payload) > 200000 then
+  -- 200KB was too tight for real usage: a handful of collected cards with
+  -- uploaded PNG logos (stored as base64 data URLs) easily exceeds it.
+  -- 2MB is still trivial for a jsonb row that lives at most 15 minutes.
+  if pg_column_size(p_payload) > 2000000 then
     raise exception 'Transfer payload is too large.';
   end if;
 
