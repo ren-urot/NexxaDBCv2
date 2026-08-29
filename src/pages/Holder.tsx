@@ -957,7 +957,7 @@ export default function Holder() {
   if (isStandalone) {
     return (
       <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col" style={{ fontFamily: "var(--font-sans)" }}>
-        <InstallPrompt dark />
+        <InstallPrompt />
         <div className="flex-1">{content}</div>
         <button
           onClick={() => navigate("/")}
