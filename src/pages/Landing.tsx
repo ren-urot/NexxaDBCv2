@@ -93,6 +93,28 @@ const PLANS = [
       "Lead Generation (Downloadable CSV)",
       "QR Transfer (Transfer Cards and Holder to New Phone)",
     ],
+    details: [
+      {
+        title: "Everything in Pro",
+        body: "Includes all the features from the Pro plan, plus advanced tools for managing multiple digital business cards and team members.",
+      },
+      {
+        title: "Multiple Team Members (Up to 5 Cards)",
+        body: "Create and manage up to 5 digital business cards for your team members, each with their own contact information and profile.",
+      },
+      {
+        title: "Multiple DBC Management",
+        body: "Manage multiple digital business cards in one place, making it easier to organize, update, and maintain cards for your team or business.",
+      },
+      {
+        title: "Lead Generation (Downloadable CSV)",
+        body: "Capture contact information from people who interact with your digital business cards and download your leads as a CSV file for easy follow-up and management.",
+      },
+      {
+        title: "QR Transfer (Transfer Cards and Holder to New Phone)",
+        body: "Transfer your digital business cards and Holder data to a new phone by scanning a QR code, making it easy to move your cards without setting everything up again.",
+      },
+    ],
   },
 ];
 
