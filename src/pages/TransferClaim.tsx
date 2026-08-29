@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle2, XCircle } from "lucide-react";
 import Logo from "../components/Logo";
-import { claimTransfer } from "../lib/supabase";
+import { claimTransfer, getPublicCard } from "../lib/supabase";
 import { mergeCollectedCards, type SavedCard } from "../lib/collectedCards";
 import { mergeOwnedOrders } from "../lib/deviceOwnership";
+import type { PaymentStatus } from "../types";
 
 interface TransferPayload {
-  collectedCards: SavedCard[];
+  collectedCardCodes: string[];
   ownedOrders: string[];
 }
 
@@ -26,15 +27,31 @@ export default function TransferClaim() {
     }
     let cancelled = false;
     claimTransfer<TransferPayload>(params.token)
-      .then((payload) => {
+      .then(async (payload) => {
         if (cancelled) return;
         if (!payload) {
           setState("invalid");
           return;
         }
-        mergeCollectedCards(payload.collectedCards ?? []);
+        const codes = payload.collectedCardCodes ?? [];
+        const activeStatuses: PaymentStatus[] = ["approved", "provisioned"];
+        const results = await Promise.all(
+          codes.map(async (code) => {
+            try {
+              const result = await getPublicCard(code);
+              if (!result || !activeStatuses.includes(result.status)) return null;
+              const card: SavedCard = { ...result.card, id: code, savedAt: new Date().toISOString() };
+              return card;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        if (cancelled) return;
+        const fetched = results.filter((c): c is SavedCard => c !== null);
+        mergeCollectedCards(fetched);
         mergeOwnedOrders(payload.ownedOrders ?? []);
-        setCardCount(payload.collectedCards?.length ?? 0);
+        setCardCount(fetched.length);
         setState("success");
       })
       .catch(() => {

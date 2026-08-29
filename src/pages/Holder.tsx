@@ -430,7 +430,13 @@ function TransferPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     let cancelled = false;
-    const payload = { collectedCards: loadCollectedCards(), ownedOrders: getOwnedOrders() };
+    // Only order codes travel through the transfer, not full card data — a
+    // year of collecting cards can mean dozens of them, each carrying an
+    // uploaded logo as a base64 data URL, which blew straight through any
+    // reasonable payload cap. The new phone re-fetches each card live by
+    // its code instead, which is small regardless of how many cards there
+    // are, and gets current data rather than a stale snapshot.
+    const payload = { collectedCardCodes: loadCollectedCards().map((c) => c.id), ownedOrders: getOwnedOrders() };
     createTransfer(payload)
       .then((token) => QRCode.toDataURL(`${window.location.origin}/transfer/${token}`, { width: 320, margin: 1 }))
       .then((url) => {
