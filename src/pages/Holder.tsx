@@ -589,10 +589,13 @@ export default function Holder() {
       : [];
   const familyRoot = family.find((f) => f.is_root);
   const familySize = family.length > 0 ? family.length : hasRealCard ? 1 : 0;
-  // Business-only, and only for the original purchaser's own card — an
-  // add-on team member's card is never root, so it never gets this button
-  // even though it's part of the same family.
-  const canAddCard = Boolean(orderCode) && familySize > 0 && familySize < 5 && isRootCard;
+  // Business-only, and only for the original purchaser's own device on
+  // their own card — an add-on team member's card is never root, so it
+  // never gets this button even though it's part of the same family.
+  // isOwnerDevice is required too: without it, anyone who just scanned
+  // someone else's card would see (and could use) an "add a new card"
+  // button that adds team members to a stranger's family.
+  const canAddCard = Boolean(orderCode) && isOwnerDevice && familySize > 0 && familySize < 5 && isRootCard;
 
   const realCards: SavedCard[] = [...ownCards, ...collectedCards];
   const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
