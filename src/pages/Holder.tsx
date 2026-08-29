@@ -208,7 +208,17 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
 // Business plan "Lead Generation": shown in place of the card itself when
 // the owner has required contact info before it unlocks, to anyone who
 // isn't the owner's own device and hasn't already left their info here.
-function LeadGate({ ownerName, orderCode, onUnlock }: { ownerName: string; orderCode: string; onUnlock: () => void }) {
+function LeadGate({
+  ownerName,
+  orderCode,
+  onUnlock,
+  onCancel,
+}: {
+  ownerName: string;
+  orderCode: string;
+  onUnlock: () => void;
+  onCancel?: () => void;
+}) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -234,7 +244,15 @@ function LeadGate({ ownerName, orderCode, onUnlock }: { ownerName: string; order
   };
 
   return (
-    <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col items-center justify-center px-6 text-center">
+    <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col items-center justify-center px-6 text-center relative">
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          className="absolute top-5 right-5 text-white/50 hover:text-white transition-colors"
+        >
+          <X size={22} />
+        </button>
+      )}
       <div className="w-full max-w-sm">
         <div className="text-white/40 text-[10px] tracking-widest uppercase mb-3">Before you continue</div>
         <h1 className="text-white text-xl font-semibold mb-2">
@@ -619,6 +637,7 @@ export default function Holder() {
   const [collectedCards, setCollectedCards] = useState<SavedCard[]>(() => loadCollectedCards());
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [pendingLead, setPendingLead] = useState<{ orderCode: string; card: CardData } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
 
   // "Add New Cards": every card in this order's family (itself plus any
@@ -698,17 +717,30 @@ export default function Holder() {
         setScanMessage("That card isn't active yet.");
         return;
       }
-      const entry: SavedCard = { ...result.card, id: scannedOrderCode, savedAt: new Date().toISOString() };
-      setCollectedCards((cs) => {
-        const next = [entry, ...cs];
-        saveCollectedCards(next);
-        return next;
-      });
-      const name = `${result.card.firstName} ${result.card.lastName}`.trim() || "their card";
-      setScanMessage(`Added ${name} to your Card Holder.`);
+      // Lead Generation must gate every way a card can be picked up, not
+      // just a cold link visit — the in-app scanner was fetching and
+      // saving the card straight away, skipping the owner's contact-info
+      // requirement entirely. Same exemptions as the direct-link gate: the
+      // owner's own device, and anyone who's already unlocked this card.
+      if (result.lead_gen_enabled && !isOwnedOrder(scannedOrderCode) && !isUnlockedCard(scannedOrderCode)) {
+        setPendingLead({ orderCode: scannedOrderCode, card: result.card });
+        return;
+      }
+      addCollectedCard(scannedOrderCode, result.card);
     } catch {
       setScanMessage("Couldn't load that card. Try again.");
     }
+  };
+
+  const addCollectedCard = (code: string, card: CardData) => {
+    const entry: SavedCard = { ...card, id: code, savedAt: new Date().toISOString() };
+    setCollectedCards((cs) => {
+      const next = [entry, ...cs];
+      saveCollectedCards(next);
+      return next;
+    });
+    const name = `${card.firstName} ${card.lastName}`.trim() || "their card";
+    setScanMessage(`Added ${name} to your Card Holder.`);
   };
 
   useEffect(() => {
@@ -801,6 +833,19 @@ export default function Holder() {
   const content = (
     <>
       {scannerOpen && <QrScannerModal onScan={handleScan} onClose={() => setScannerOpen(false)} />}
+      {pendingLead && (
+        <div className="fixed inset-0 z-50">
+          <LeadGate
+            ownerName={`${pendingLead.card.firstName} ${pendingLead.card.lastName}`.trim()}
+            orderCode={pendingLead.orderCode}
+            onUnlock={() => {
+              addCollectedCard(pendingLead.orderCode, pendingLead.card);
+              setPendingLead(null);
+            }}
+            onCancel={() => setPendingLead(null)}
+          />
+        </div>
+      )}
       {scanMessage && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-black/90 text-white text-xs px-4 py-2.5 rounded-full shadow-lg max-w-[90vw] text-center">
           {scanMessage}
