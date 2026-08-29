@@ -314,21 +314,34 @@ function downloadLeadsCsv(leads: LeadRow[]) {
 
 function LeadSettingsPanel({
   orderCode,
-  enabled,
+  cardName,
   onClose,
   onToggle,
 }: {
   orderCode: string;
-  enabled: boolean;
+  // Shown in the panel title when configuring a team member's card rather
+  // than the owner's own (which has no name to disambiguate it by).
+  cardName?: string;
   onClose: () => void;
-  onToggle: (next: boolean) => void;
+  onToggle?: (next: boolean) => void;
 }) {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [toggling, setToggling] = useState(false);
   const [leads, setLeads] = useState<LeadRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    // Self-fetched rather than passed in as a prop, since this panel now
+    // opens for any card in the family (root or a team member's), not just
+    // whichever one the parent happens to already have state for.
+    getPublicCard(orderCode)
+      .then((result) => {
+        if (!cancelled && result) setEnabled(result.lead_gen_enabled);
+      })
+      .catch(() => {
+        // Toggle stays disabled until this resolves; leads can still load.
+      });
     getLeads(orderCode)
       .then((rows) => {
         if (!cancelled) setLeads(rows);
@@ -342,12 +355,14 @@ function LeadSettingsPanel({
   }, [orderCode]);
 
   const handleToggle = async () => {
+    if (enabled === null) return;
     setToggling(true);
     try {
       await setLeadGenEnabled(orderCode, !enabled);
-      onToggle(!enabled);
+      setEnabled(!enabled);
+      onToggle?.(!enabled);
     } catch {
-      // Leave the switch as-is: the parent's state didn't change, so the
+      // Leave the switch as-is: the actual value didn't change, so the
       // UI already reflects the failed toggle correctly.
     } finally {
       setToggling(false);
@@ -358,7 +373,9 @@ function LeadSettingsPanel({
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
       <div className="w-full max-w-sm bg-[var(--color-foreground)] rounded-t-2xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <div className="text-white text-sm font-semibold">Lead Generation</div>
+          <div className="text-white text-sm font-semibold">
+            {cardName ? `Lead Generation: ${cardName}` : "Lead Generation"}
+          </div>
           <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
             <X size={18} />
           </button>
@@ -368,12 +385,12 @@ function LeadSettingsPanel({
           <div className="pr-4">
             <div className="text-white text-xs font-medium">Require contact info</div>
             <div className="text-white/40 text-[10px] mt-0.5 leading-relaxed">
-              Anyone who scans your card must leave an email or phone number before it unlocks.
+              Anyone who scans this card must leave an email or phone number before it unlocks.
             </div>
           </div>
           <button
             onClick={handleToggle}
-            disabled={toggling}
+            disabled={toggling || enabled === null}
             className={`shrink-0 w-10 h-6 rounded-full transition-colors flex items-center px-0.5 disabled:opacity-40 ${
               enabled ? "bg-[var(--color-accent)] justify-end" : "bg-white/15 justify-start"
             }`}
@@ -589,7 +606,11 @@ export default function Holder() {
   const [justUnlocked, setJustUnlocked] = useState(false);
   const gateUnlocked = justUnlocked || (orderCode ? isUnlockedCard(orderCode) : false);
   const showLeadGate = isStandalone && leadGenEnabled && !isOwnerDevice && !gateUnlocked;
-  const [leadSettingsOpen, setLeadSettingsOpen] = useState(false);
+  // Order code of whichever card's Lead Settings panel is open, or null if
+  // closed. Holds an order_code rather than a boolean so the same panel
+  // serves both the owner's own card and any team member's card in the
+  // family, from two different places in this component.
+  const [leadSettingsTarget, setLeadSettingsTarget] = useState<string | null>(null);
 
   // The main scan-fetch effect above only runs in standalone mode (it
   // skips entirely once navState.card is present). The owner's Lead
@@ -686,8 +707,11 @@ export default function Holder() {
   // never gets this button even though it's part of the same family.
   // isOwnerDevice is required too: without it, anyone who just scanned
   // someone else's card would see (and could use) an "add a new card"
-  // button that adds team members to a stranger's family.
-  const canAddCard = Boolean(orderCode) && isOwnerDevice && familySize > 0 && familySize < 5 && isRootCard;
+  // button that adds team members to a stranger's family. No upper bound
+  // here: the first 5 members (root + 5 = 6 total) are free, and submit_order
+  // itself decides server-side whether a card beyond that requires payment,
+  // so this button just always stays available to the owner.
+  const canAddCard = Boolean(orderCode) && isOwnerDevice && familySize > 0 && isRootCard;
 
   const realCards: SavedCard[] = [...ownCards, ...collectedCards];
   const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
@@ -872,7 +896,7 @@ export default function Holder() {
             <div className="flex-1 text-white text-[15px] font-semibold">My Digital Business Card</div>
             {isOwnerDevice && orderCode && isRootCard && (
               <button
-                onClick={() => setLeadSettingsOpen(true)}
+                onClick={() => setLeadSettingsTarget(orderCode)}
                 className="text-white/50 hover:text-white transition-colors"
                 title="Lead Generation settings"
               >
@@ -885,11 +909,10 @@ export default function Holder() {
               <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
             </div>
           </div>
-          {leadSettingsOpen && orderCode && (
+          {leadSettingsTarget === orderCode && orderCode && (
             <LeadSettingsPanel
               orderCode={orderCode}
-              enabled={leadGenEnabled}
-              onClose={() => setLeadSettingsOpen(false)}
+              onClose={() => setLeadSettingsTarget(null)}
               onToggle={setLeadGenEnabledState}
             />
           )}
@@ -926,6 +949,7 @@ export default function Holder() {
                           addOn: {
                             addTo: familyRoot?.order_code ?? orderCode,
                             brandingCard: familyRoot?.card ?? myCard,
+                            familySize,
                           },
                         },
                       })
@@ -1045,12 +1069,27 @@ export default function Holder() {
       {/* CARD DETAIL */}
       {tab === "my-cards" && selectedCard && (
         <div className="min-h-full flex flex-col p-5">
-          <button
-            onClick={() => setSelectedCard(null)}
-            className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-white/50 mb-5 hover:text-white transition-colors mt-[30px]"
-          >
-            <ChevronLeft size={12} /> All Cards
-          </button>
+          <div className="flex items-center justify-between mb-5 mt-[30px]">
+            <button
+              onClick={() => setSelectedCard(null)}
+              className="flex items-center gap-1 text-[10px] tracking-widest uppercase text-white/50 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={12} /> All Cards
+            </button>
+            {/* Lets the owner configure Lead Generation on any card in
+                their own family, not just their own root card, so team
+                members' cards can also require contact info from
+                whoever scans them. */}
+            {isOwnerDevice && isRootCard && ownCards.some((c) => c.id === selectedCard.id) && (
+              <button
+                onClick={() => setLeadSettingsTarget(selectedCard.id)}
+                className="text-white/50 hover:text-white transition-colors"
+                title="Lead Generation settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
+          </div>
 
           {/* Card display */}
           <div className="flex-1 flex items-center justify-center">
@@ -1067,6 +1106,14 @@ export default function Holder() {
               />
             </div>
           </div>
+
+          {leadSettingsTarget === selectedCard.id && (
+            <LeadSettingsPanel
+              orderCode={selectedCard.id}
+              cardName={`${selectedCard.firstName} ${selectedCard.lastName}`.trim()}
+              onClose={() => setLeadSettingsTarget(null)}
+            />
+          )}
         </div>
       )}
     </>

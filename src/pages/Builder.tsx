@@ -16,7 +16,7 @@ import type { CardData, CardTheme, BuilderStep, BackgroundStyle, PaymentStatus }
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
 import { resolvePlan } from "../data/plans";
-import { createOrder, getOrderStatus, supabaseConfigured, getErrorMessage } from "../lib/supabase";
+import { createOrder, getOrderStatus, getPublicCard, supabaseConfigured, getErrorMessage } from "../lib/supabase";
 import { markOwnedOrder } from "../lib/deviceOwnership";
 import { compressImageToDataUrl } from "../lib/imageCompress";
 import html2canvas from "html2canvas-pro";
@@ -191,9 +191,17 @@ interface AddOnState {
   // one level deep.
   addTo: string;
   brandingCard: CardData;
+  // Current total card count (root + existing members) at the moment this
+  // flow was opened, used only to decide which UI to show (skip the
+  // payment step for a free slot). The real decision is made server-side
+  // in submit_order from the actual row count, so a stale/wrong value here
+  // can only affect which screens are shown, never what gets charged.
+  familySize: number;
 }
 
 const ADD_ON_PRICE_PHP = 199;
+// The Business plan bundles the root card + 5 free team members (6 total).
+const FREE_FAMILY_SIZE = 6;
 
 // Personal fields cleared when starting a new card from an existing
 // family's branding; everything else (template, colors, logo,
@@ -224,7 +232,12 @@ export default function Builder() {
   // An add-on card inherits its family's branding untouched and skips
   // straight from entering the person's info to payment: no design step,
   // no separate preview screen, since nothing about the design changes.
-  const activeSteps = addOn ? STEPS.filter((s) => s.id === "details" || s.id === "payment" || s.id === "status") : STEPS;
+  // A free slot (this card's position is within the plan's included 6)
+  // skips the payment step entirely too, straight to status.
+  const isFreeAddOn = Boolean(addOn) && addOn!.familySize < FREE_FAMILY_SIZE;
+  const activeSteps = addOn
+    ? STEPS.filter((s) => s.id === "details" || (s.id === "payment" && !isFreeAddOn) || s.id === "status")
+    : STEPS;
 
   const [step, setStep] = useState<BuilderStep>(savedSession?.step ?? (addOn ? "details" : "template"));
   const [card, setCard] = useState<CardData>(
@@ -374,6 +387,41 @@ export default function Builder() {
     }
   };
 
+  // Free team-member slots skip the payment step entirely: submit_order
+  // decides server-side whether this card's position is actually free
+  // (see schema.sql), so this just submits with no payment info and reads
+  // back whatever status the server actually assigned, rather than
+  // assuming "approved" and risking a stale/wrong result on a race.
+  const submitFreeAddOn = async () => {
+    if (!addOn) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const code = await createOrder({
+        customer: `${card.firstName} ${card.lastName}`.trim(),
+        email: card.email,
+        template: card.template,
+        amount: 0,
+        amount_usd: 0,
+        exchange_rate: PHP_PER_USD,
+        method: "gcash",
+        payment_ref: "",
+        notes: "Free team member (Business plan)",
+        card,
+        parent_order_code: addOn.addTo,
+      });
+      setOrderCode(code);
+      markOwnedOrder(code);
+      const result = await getPublicCard(code);
+      if (result) setLiveStatus(result.status);
+      setStep("status");
+    } catch (err) {
+      setSubmitError(getErrorMessage(err, "Failed to add this card. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!cardRef.current) return;
     setDownloadingPdf(true);
@@ -407,7 +455,8 @@ export default function Builder() {
             onClick={() => navigate(addOn ? `/holder/${addOn.addTo}` : "/", { state: undefined })}
             className="hidden md:flex items-center gap-1.5 text-[10px] tracking-widest uppercase border border-[var(--color-border)] rounded-full px-3 py-1.5 text-[var(--color-muted-fg)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
           >
-            <Sparkles size={11} /> {addOn ? "Add-on Card" : `${plan.name} Plan`}
+            <Sparkles size={11} />{" "}
+            {addOn ? (isFreeAddOn ? "Free Team Member" : "Add-on Card") : `${plan.name} Plan`}
           </button>
         </div>
 
@@ -566,21 +615,31 @@ export default function Builder() {
                   </div>
                 </div>
               </div>
+              {isFreeAddOn && submitError && (
+                <div className="mt-6 text-[10px] text-red-600 bg-red-50 border border-red-200 px-4 py-3">
+                  {submitError}
+                </div>
+              )}
               <div className="mt-10 flex justify-between">
                 <button onClick={goBack} className="text-xs tracking-widest uppercase text-[var(--color-muted-fg)] px-6 py-3 border border-[var(--color-border)] hover:border-[var(--color-foreground)] transition-colors">
                   Back
                 </button>
                 <button
+                  disabled={isFreeAddOn && submitting}
                   onClick={() => {
                     if (!detailsValid) {
                       touchAll(DETAIL_FIELDS.map((f) => f.key));
                       return;
                     }
+                    if (isFreeAddOn) {
+                      submitFreeAddOn();
+                      return;
+                    }
                     goNext();
                   }}
-                  className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors"
+                  className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors disabled:opacity-40"
                 >
-                  Continue
+                  {isFreeAddOn && submitting ? "Adding…" : "Continue"}
                 </button>
               </div>
             </div>

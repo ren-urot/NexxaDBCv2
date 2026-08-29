@@ -147,6 +147,8 @@ as $$
 declare
   v_order_code text;
   v_parent_id bigint;
+  v_family_count int;
+  v_initial_status text := 'submitted';
 begin
   -- Resolved server-side from the order_code the client already has (never
   -- a raw numeric id: the client never sees or handles those), and always
@@ -161,8 +163,17 @@ begin
       raise exception 'Unknown parent order code: %', p_parent_order_code;
     end if;
 
-    if (select count(*) from nexora_orders where id = v_parent_id or parent_order_id = v_parent_id) >= 5 then
-      raise exception 'This Card Holder already has the maximum of 5 cards.';
+    select count(*) into v_family_count
+    from nexora_orders where id = v_parent_id or parent_order_id = v_parent_id;
+
+    -- The Business plan includes the root card plus 5 free team members
+    -- (6 total). This new card's position is v_family_count + 1, computed
+    -- server-side from the real row count, not trusted from the client, so
+    -- it's the only thing that decides whether payment is actually
+    -- required. Position 7+ still goes through the normal paid/admin-
+    -- review flow below, same as the root order always does.
+    if v_family_count + 1 <= 6 then
+      v_initial_status := 'approved';
     end if;
   end if;
 
@@ -180,7 +191,7 @@ begin
     )
     values (
       p_customer, p_email, p_template, p_amount, p_amount_usd, p_exchange_rate,
-      p_method, p_payment_ref, p_notes, 'submitted', p_card, v_parent_id
+      p_method, p_payment_ref, p_notes, v_initial_status, p_card, v_parent_id
     )
     returning order_code into v_order_code;
   exception when unique_violation then

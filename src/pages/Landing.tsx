@@ -89,7 +89,7 @@ const PLANS = [
     cta: "outline" as const,
     features: [
       "Everything in Pro",
-      "Multiple Team Members (Up to 5 Cards)",
+      "5 Free Team Members",
       "Multiple DBC Management",
       "Lead Generation (Downloadable CSV)",
       "QR Transfer",
@@ -100,8 +100,8 @@ const PLANS = [
         body: "Includes all the features from the Pro plan, plus advanced tools for managing multiple digital business cards and team members.",
       },
       {
-        title: "Multiple Team Members (Up to 5 Cards)",
-        body: "Create and manage up to 5 digital business cards for your team members, each with their own contact information and profile.",
+        title: "5 Free Team Members",
+        body: "Add up to 5 team members' digital business cards for free, on top of your own (6 cards total). Need more? Additional cards are ₱199 each.",
       },
       {
         title: "Multiple DBC Management",
