@@ -4,7 +4,7 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
   basic: {
     id: "basic",
     name: "Basic",
-    price: 199,
+    price: 99,
     templates: ["corporate"],
     customColor: false,
     logoUpload: false,
@@ -15,7 +15,7 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
   pro: {
     id: "pro",
     name: "Pro",
-    price: 499,
+    price: 199,
     templates: ["corporate", "professional", "modern", "minimal", "executive", "creative"],
     customColor: true,
     logoUpload: true,
@@ -30,7 +30,7 @@ export const PLAN_CONFIG: Record<PlanId, Plan> = {
   business: {
     id: "business",
     name: "Business",
-    price: 999,
+    price: 499,
     templates: ["corporate", "professional", "modern", "minimal", "executive", "creative"],
     customColor: true,
     logoUpload: true,

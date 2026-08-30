@@ -24,7 +24,7 @@ const PLANS = [
   {
     name: "Basic",
     desc: "Perfect for individuals",
-    price: 199,
+    price: 99,
     cta: "outline" as const,
     features: [
       "Create 1 Digital Business Card",
@@ -59,7 +59,7 @@ const PLANS = [
   {
     name: "Pro",
     desc: "Best for professional",
-    price: 499,
+    price: 199,
     cta: "solid" as const,
     popular: true,
     features: ["Everything in Basic", "Custom Themes & Templates", "Add Your Logo", "Whatsapp Direct Call"],
@@ -85,7 +85,7 @@ const PLANS = [
   {
     name: "Business",
     desc: "For teams & companies",
-    price: 999,
+    price: 499,
     cta: "outline" as const,
     features: [
       "Everything in Pro",
