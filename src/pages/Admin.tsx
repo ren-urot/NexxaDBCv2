@@ -4,6 +4,7 @@ import { Trash2, Download, Bell, BellOff } from "lucide-react";
 import type { Order, PaymentStatus } from "../types";
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
+import { usePageMeta } from "../lib/pageMeta";
 import {
   fetchOrders,
   updateOrderStatus,
@@ -171,6 +172,7 @@ function LoginForm({ onSignedIn }: { onSignedIn: () => void }) {
 }
 
 export default function Admin() {
+  usePageMeta("Admin | NexxaDBC", true);
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-out" | "signed-in">("loading");
 
   useEffect(() => {

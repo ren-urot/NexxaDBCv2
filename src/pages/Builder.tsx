@@ -19,6 +19,7 @@ import { resolvePlan } from "../data/plans";
 import { createOrder, getOrderStatus, getPublicCard, supabaseConfigured, getErrorMessage } from "../lib/supabase";
 import { markOwnedOrder } from "../lib/deviceOwnership";
 import { compressImageToDataUrl } from "../lib/imageCompress";
+import { usePageMeta } from "../lib/pageMeta";
 import html2canvas from "html2canvas-pro";
 import qr199 from "../assets/qr-199.png";
 import qr499 from "../assets/qr-499.png";
@@ -221,6 +222,7 @@ const ADD_ON_RESET_FIELDS: (keyof CardData)[] = [
 ];
 
 export default function Builder() {
+  usePageMeta("Create Your Card | NexxaDBC", true);
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as { plan?: string; addOn?: AddOnState } | null;

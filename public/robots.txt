@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /about
+Disallow: /holder
+Disallow: /builder
+Disallow: /admin
+Disallow: /transfer
+
+Sitemap: https://nexxadbc.com/sitemap.xml

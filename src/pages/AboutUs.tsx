@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
+import { usePageMeta } from "../lib/pageMeta";
 
 const VALUES = [
   {
@@ -17,6 +18,7 @@ const VALUES = [
 ];
 
 export default function AboutUs() {
+  usePageMeta("About Us | NexxaDBC");
   const navigate = useNavigate();
 
   return (

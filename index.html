@@ -10,10 +10,33 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NexxaDBC" />
-    <title>NexxaDBC</title>
+    <title>NexxaDBC | Digital Business Cards for Professionals & Teams</title>
+    <meta
+      name="description"
+      content="Create your NexxaDBC digital business card in minutes. Share it instantly by QR code, capture leads, and manage your whole team's cards, no app download or printing needed."
+    />
+    <link rel="canonical" href="https://nexxadbc.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NexxaDBC" />
+    <meta property="og:title" content="NexxaDBC | Digital Business Cards for Professionals & Teams" />
+    <meta
+      property="og:description"
+      content="Create your NexxaDBC digital business card in minutes. Share it instantly by QR code, capture leads, and manage your whole team's cards, no app download or printing needed."
+    />
+    <meta property="og:url" content="https://nexxadbc.com/" />
+    <meta property="og:image" content="https://nexxadbc.com/og-image.webp" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NexxaDBC | Digital Business Cards for Professionals & Teams" />
+    <meta
+      name="twitter:description"
+      content="Create your NexxaDBC digital business card in minutes. Share it instantly by QR code, capture leads, and manage your whole team's cards, no app download or printing needed."
+    />
+    <meta name="twitter:image" content="https://nexxadbc.com/og-image.webp" />
     <script>
       // The built manifest.webmanifest is one static file shared by every
-      // route, with start_url "/" — so installing from a customer's own
+      // route, with start_url "/", so installing from a customer's own
       // card page (/holder/:orderCode) still launched the installed app at
       // the Landing page, not their card. On that route, swap the
       // <link rel="manifest"> to a blob URL manifest whose start_url is
@@ -24,7 +47,7 @@
       (function () {
         var match = location.pathname.match(/^\/holder\/[\w-]+$/);
         if (!match) return;
-        // Fully-qualified absolute URLs, not root-relative paths — a
+        // Fully-qualified absolute URLs, not root-relative paths: a
         // manifest served from a blob: URL doesn't resolve "/x" against
         // the page's own origin the way a normally-hosted manifest does,
         // and Chrome silently drops any field it can't resolve.
@@ -39,7 +62,7 @@
             display: "standalone",
             scope: origin + "/",
             // Preserves the query string (e.g. the provisioning QR's
-            // ?claim=1 marker) — dropping it here meant the very first
+            // ?claim=1 marker); dropping it here meant the very first
             // launch of an installed app could silently lose it, on any
             // platform/timing where the app's first real run happens
             // through the installed icon rather than the browser tab that
@@ -69,8 +92,8 @@
         observer.observe(document.documentElement, { childList: true, subtree: true });
       })();
 
-      // Capture beforeinstallprompt as early as possible — before any React
-      // module even loads — since it can fire within the first moments of
+      // Capture beforeinstallprompt as early as possible, before any React
+      // module even loads, since it can fire within the first moments of
       // page load and Chrome discards it if nothing calls preventDefault()
       // in time. The app reads window.__deferredInstallPrompt once it's
       // ready to act on it, however late that ends up being.

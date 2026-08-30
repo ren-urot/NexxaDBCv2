@@ -6,6 +6,7 @@ import { claimTransfer, getPublicCard } from "../lib/supabase";
 import { mergeCollectedCards, type SavedCard } from "../lib/collectedCards";
 import { mergeOwnedOrders } from "../lib/deviceOwnership";
 import type { PaymentStatus } from "../types";
+import { usePageMeta } from "../lib/pageMeta";
 
 interface TransferPayload {
   collectedCardCodes: string[];
@@ -15,6 +16,7 @@ interface TransferPayload {
 type ClaimState = "loading" | "success" | "invalid" | "error";
 
 export default function TransferClaim() {
+  usePageMeta("Transfer Card | NexxaDBC", true);
   const navigate = useNavigate();
   const params = useParams<{ token?: string }>();
   const [state, setState] = useState<ClaimState>("loading");

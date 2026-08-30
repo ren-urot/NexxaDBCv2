@@ -28,6 +28,7 @@ import {
 import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders } from "../lib/deviceOwnership";
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
 import { cacheCard, getCachedCard } from "../lib/cardCache";
+import { usePageMeta } from "../lib/pageMeta";
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -501,6 +502,7 @@ function TransferPanel({ onClose }: { onClose: () => void }) {
 type ScannedState = "idle" | "loading" | "ready" | "pending" | "not-found" | "error";
 
 export default function Holder() {
+  usePageMeta("My Card Holder | NexxaDBC", true);
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ orderCode?: string }>();
