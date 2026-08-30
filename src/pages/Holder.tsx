@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download, Smartphone } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download, Smartphone, MessageCircle, Send } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
 import holderEmpty from "../assets/holder-empty.webp";
 import holderOpenCase1 from "../assets/holder-open-case-1.png";
@@ -24,12 +24,55 @@ import {
   setLeadGenEnabled,
   createTransfer,
   getErrorMessage,
+  recordConnection,
+  sendChatMessage,
+  getConversations,
+  getChatMessages,
+  markChatRead,
+  subscribeToChatMessages,
+  type ConversationRow,
+  type ChatMessageRow,
 } from "../lib/supabase";
 import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders } from "../lib/deviceOwnership";
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
 import { cacheCard, getCachedCard } from "../lib/cardCache";
 import { usePageMeta } from "../lib/pageMeta";
 import { isTrialExpired, daysRemaining, resolvePlan } from "../data/plans";
+
+// A short two-tone chime for incoming chat messages, synthesized via the
+// Web Audio API rather than shipping an audio asset. Each call makes its
+// own short-lived AudioContext; browsers require a prior user gesture
+// before audio can play at all, but by the time a message arrives the
+// user has already interacted with the page (opened the app, tapped a
+// tab), so this reliably has permission.
+function playMessageChime() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    [880, 1175].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const start = now + i * 0.12;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.15, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+    setTimeout(() => ctx.close(), 500);
+  } catch {
+    // Audio can fail for all sorts of environment reasons (no gesture
+    // yet, autoplay policy, no AudioContext support); the badge/unread
+    // count still updates regardless, so a missed chime isn't worth
+    // surfacing an error over.
+  }
+}
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -114,7 +157,7 @@ const SAMPLE_CARDS: SavedCard[] = [
   },
 ];
 
-type Tab = "my-card" | "my-cards";
+type Tab = "my-card" | "my-cards" | "messages";
 
 const OPEN_CASE_W = 330;
 
@@ -749,6 +792,17 @@ export default function Holder() {
   const [pendingLead, setPendingLead] = useState<{ orderCode: string; card: CardData } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
 
+  // Chat (Pro/Business): chatWith holds the other party's order_code while
+  // a thread is open, null while showing the inbox list. conversations is
+  // the inbox; chatMessages is only populated for whichever thread is
+  // currently open.
+  const [conversations, setConversations] = useState<ConversationRow[]>([]);
+  const [chatWith, setChatWith] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessageRow[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
   // "Add New Cards": every card in this order's family (itself plus any
   // ₱199 add-on cards bought under the same Card Holder), fetched once we
   // know our own order_code. Falls back to just the one card we already
@@ -794,6 +848,90 @@ export default function Holder() {
   // so this button just always stays available to the owner.
   const canAddCard =
     Boolean(orderCode) && isOwnerDevice && familySize > 0 && isRootCard && rootPlanId === "business";
+
+  // Chat: Pro or Business, unlike the other gates above this isn't
+  // Business-only. Server-side send_chat_message re-checks both sides'
+  // plans anyway (see schema.sql), so this is purely a UI-visibility
+  // decision, not the real enforcement boundary.
+  const canChat =
+    Boolean(orderCode) && isOwnerDevice && isRootCard && (rootPlanId === "pro" || rootPlanId === "business");
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unread_count, 0);
+
+  const refreshConversations = () => {
+    if (!orderCode) return;
+    getConversations(orderCode)
+      .then(setConversations)
+      .catch(() => {
+        // Non-critical: the badge just stays at its last known count.
+      });
+  };
+
+  useEffect(() => {
+    if (!canChat) return;
+    refreshConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canChat, orderCode]);
+
+  // Real-time delivery while the Card Holder is open: plays the chime,
+  // bumps the badge, and appends to the open thread live if that's the
+  // conversation the message just arrived on. Falls back to whatever the
+  // next getConversations/getChatMessages call picks up regardless (see
+  // sendChatMessage's comment), so a missed broadcast (tab backgrounded,
+  // brief disconnect) never loses a message, just delays seeing it.
+  useEffect(() => {
+    if (!canChat || !orderCode) return;
+    const unsubscribe = subscribeToChatMessages(orderCode, (payload) => {
+      playMessageChime();
+      refreshConversations();
+      setChatWith((current) => {
+        if (current === payload.from) {
+          setChatMessages((msgs) => [...msgs, { from_order_code: payload.from, body: payload.body, created_at: new Date().toISOString() }]);
+          markChatRead(orderCode, payload.from).catch(() => {});
+        }
+        return current;
+      });
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canChat, orderCode]);
+
+  // Loads the full thread and marks it read the moment a conversation is
+  // opened, so the badge count reflects what the owner has actually seen.
+  useEffect(() => {
+    if (!chatWith || !orderCode) return;
+    let cancelled = false;
+    getChatMessages(orderCode, chatWith)
+      .then((msgs) => {
+        if (!cancelled) setChatMessages(msgs);
+      })
+      .catch(() => {
+        if (!cancelled) setChatError("Couldn't load messages. Please try again.");
+      });
+    markChatRead(orderCode, chatWith)
+      .then(refreshConversations)
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatWith, orderCode]);
+
+  const handleSendMessage = async () => {
+    if (!orderCode || !chatWith || !chatInput.trim() || sendingMessage) return;
+    const body = chatInput.trim();
+    setSendingMessage(true);
+    setChatError(null);
+    try {
+      await sendChatMessage(orderCode, chatWith, body);
+      setChatMessages((msgs) => [...msgs, { from_order_code: orderCode, body, created_at: new Date().toISOString() }]);
+      setChatInput("");
+      refreshConversations();
+    } catch (err) {
+      setChatError(getErrorMessage(err, "Couldn't send that message. Please try again."));
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   const realCards: SavedCard[] = [...ownCards, ...collectedCards];
   const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
@@ -854,6 +992,14 @@ export default function Holder() {
     });
     const name = `${card.firstName} ${card.lastName}`.trim() || "their card";
     setScanMessage(`Added ${name} to your Card Holder.`);
+    // Chat eligibility (see schema.sql's send_chat_message): only possible
+    // once this device's own card is known, i.e. someone browsing without
+    // ever having their own card can still collect cards, just can't chat
+    // from them. Fire-and-forget: this shouldn't block or fail the scan
+    // itself if it errors.
+    if (orderCode) {
+      recordConnection(orderCode, code).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -1091,6 +1237,23 @@ export default function Holder() {
                     <Smartphone size={20} />
                   </button>
                 )}
+                {canChat && (
+                  <button
+                    onClick={() => {
+                      setChatWith(null);
+                      setTab("messages");
+                    }}
+                    className="relative text-white/50 hover:text-white transition-colors"
+                    title="Messages"
+                  >
+                    <MessageCircle size={20} />
+                    {totalUnread > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--color-accent)] text-white text-[9px] leading-4 text-center font-semibold">
+                        {totalUnread > 9 ? "9+" : totalUnread}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => setTab("my-card")}
                   className="text-white/50 hover:text-white transition-colors"
@@ -1204,6 +1367,23 @@ export default function Holder() {
                 <Settings size={18} />
               </button>
             )}
+            {/* Only for other people's cards, not your own family's:
+                messaging your own team member's card doesn't mean
+                anything, and send_chat_message rejects self-messages
+                anyway. Eligibility (both sides Pro/Business, a
+                connection exists) is re-checked server-side on send. */}
+            {canChat && collectedCards.some((c) => c.id === selectedCard.id) && (
+              <button
+                onClick={() => {
+                  setChatWith(selectedCard.id);
+                  setTab("messages");
+                }}
+                className="text-white/50 hover:text-white transition-colors"
+                title="Message"
+              >
+                <MessageCircle size={18} />
+              </button>
+            )}
           </div>
 
           {/* Card display */}
@@ -1229,6 +1409,121 @@ export default function Holder() {
               onClose={() => setLeadSettingsTarget(null)}
             />
           )}
+        </div>
+      )}
+
+      {/* MESSAGES (Pro/Business): inbox list when chatWith is null,
+          otherwise the open thread with that one connection. */}
+      {tab === "messages" && !chatWith && (
+        <div className="min-h-full flex flex-col">
+          <div className="px-5 pt-1 pb-2 flex items-center gap-4 mt-[30px]">
+            <button
+              onClick={() => setTab("my-cards")}
+              className="text-white/70 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <div className="flex-1 text-white text-[15px] font-semibold">Messages</div>
+          </div>
+          {conversations.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+              <MessageCircle size={28} className="text-white/20 mb-4" />
+              <p className="text-white/40 text-xs leading-relaxed">
+                Scan someone's card (or have them scan yours) to start a conversation.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 divide-y divide-white/10 overflow-y-auto">
+              {conversations.map((c) => {
+                const name = `${c.with_card.firstName} ${c.with_card.lastName}`.trim() || c.with_order_code;
+                return (
+                  <button
+                    key={c.with_order_code}
+                    onClick={() => setChatWith(c.with_order_code)}
+                    className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-white text-sm font-medium truncate">{name}</span>
+                        {c.last_message_at && (
+                          <span className="text-white/30 text-[10px] shrink-0">
+                            {new Date(c.last_message_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white/50 text-xs mt-0.5 truncate">{c.last_message ?? "Say hello"}</p>
+                    </div>
+                    {c.unread_count > 0 && (
+                      <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-accent)] text-white text-[10px] leading-[18px] text-center font-semibold">
+                        {c.unread_count > 9 ? "9+" : c.unread_count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "messages" && chatWith && (
+        <div className="min-h-full flex flex-col">
+          <div className="px-5 pt-1 pb-2 flex items-center gap-4 mt-[30px]">
+            <button
+              onClick={() => setChatWith(null)}
+              className="text-white/70 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <div className="flex-1 text-white text-[15px] font-semibold truncate">
+              {(() => {
+                const convo = conversations.find((c) => c.with_order_code === chatWith);
+                const name = convo ? `${convo.with_card.firstName} ${convo.with_card.lastName}`.trim() : "";
+                return name || chatWith;
+              })()}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+            {chatMessages.length === 0 && (
+              <p className="text-white/30 text-xs text-center mt-8">No messages yet. Say hello!</p>
+            )}
+            {chatMessages.map((m, i) => {
+              const mine = m.from_order_code === orderCode;
+              return (
+                <div key={i} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[75%] px-3.5 py-2 rounded-[14px] text-xs leading-relaxed ${
+                      mine ? "bg-[var(--color-accent)] text-white" : "bg-white/10 text-white"
+                    }`}
+                  >
+                    {m.body}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {chatError && <div className="px-5 pb-2 text-red-400 text-[11px]">{chatError}</div>}
+          <div className="px-5 py-3 flex items-center gap-2">
+            <input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Message"
+              className="flex-1 bg-white/5 border border-white/15 text-white text-sm px-4 py-2.5 rounded-full focus:outline-none focus:border-white/40 placeholder:text-white/30"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!chatInput.trim() || sendingMessage}
+              className="shrink-0 w-9 h-9 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center disabled:opacity-40 hover:opacity-90 transition-opacity"
+            >
+              <Send size={15} />
+            </button>
+          </div>
         </div>
       )}
     </>

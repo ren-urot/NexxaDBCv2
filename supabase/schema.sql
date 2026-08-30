@@ -614,3 +614,237 @@ $$;
 -- restricting this one function to signed-in admins.
 revoke execute on function get_subscribers() from public;
 grant execute on function get_subscribers() to authenticated;
+
+-- Chat (Pro/Business plans): lets two cardholders who've exchanged cards
+-- message each other directly inside the app, real-time. Connections and
+-- messages are keyed by ROOT order id (coalesce(parent_order_id, id)),
+-- same as every other family-aware feature: chat is between people, i.e.
+-- family roots, not between individual add-on cards.
+--
+-- order_id_a is always the smaller id (enforced below) so a connection
+-- between two roots has exactly one canonical row no matter which side
+-- scanned first.
+create table if not exists nexora_connections (
+  id bigint generated always as identity primary key,
+  order_id_a bigint not null references nexora_orders(id),
+  order_id_b bigint not null references nexora_orders(id),
+  created_at timestamptz not null default now(),
+  constraint nexora_connections_ordered check (order_id_a < order_id_b),
+  constraint nexora_connections_unique unique (order_id_a, order_id_b)
+);
+
+alter table nexora_connections enable row level security;
+
+create table if not exists nexora_messages (
+  id bigint generated always as identity primary key,
+  from_order_id bigint not null references nexora_orders(id),
+  to_order_id bigint not null references nexora_orders(id),
+  body text not null,
+  created_at timestamptz not null default now(),
+  read_at timestamptz
+);
+
+-- RLS enabled with no policies, same trust model as everywhere else in
+-- this app (order_code-as-credential, no login): all access goes through
+-- the SECURITY DEFINER functions below, never a direct table read/write.
+alter table nexora_messages enable row level security;
+
+create index if not exists nexora_messages_to_order_id_idx on nexora_messages (to_order_id, created_at desc);
+create index if not exists nexora_messages_from_order_id_idx on nexora_messages (from_order_id, created_at desc);
+
+-- Called after a successful in-app scan (see Holder.tsx's handleScan),
+-- only when the scanning device itself has its own card open: recording a
+-- connection is what makes chat's "anyone who's received your DBC can
+-- message you" rule mean something, rather than any two order_codes being
+-- able to message each other with no prior relationship. Silent no-op if
+-- the two are already connected, or if someone scans their own card.
+create or replace function record_connection(p_order_code text, p_scanned_order_code text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_root_a bigint;
+  v_root_b bigint;
+begin
+  select coalesce(o.parent_order_id, o.id) into v_root_a from nexora_orders o where o.order_code = p_order_code;
+  select coalesce(o.parent_order_id, o.id) into v_root_b from nexora_orders o where o.order_code = p_scanned_order_code;
+
+  if v_root_a is null or v_root_b is null or v_root_a = v_root_b then
+    return;
+  end if;
+
+  insert into nexora_connections (order_id_a, order_id_b)
+  values (least(v_root_a, v_root_b), greatest(v_root_a, v_root_b))
+  on conflict (order_id_a, order_id_b) do nothing;
+end;
+$$;
+
+grant execute on function record_connection(text, text) to anon, authenticated;
+
+-- Sends a message from one cardholder to another. Requires: both roots are
+-- on a plan that includes chat (Pro or Business; a free trial or Basic
+-- card can't send or receive), and a connection already exists between
+-- them (see record_connection) so this can't be used to cold-message a
+-- stranger's order_code. Real-time delivery itself happens client-side via
+-- a Realtime Broadcast on a channel named after the recipient's order_code
+-- (see lib/supabase.ts sendMessage), not through this function; this just
+-- persists the message so it's there on the recipient's next fetch
+-- regardless of whether they were online to receive the broadcast.
+create or replace function send_chat_message(p_from_order_code text, p_to_order_code text, p_body text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_root_from bigint;
+  v_root_to bigint;
+  v_plan_from text;
+  v_plan_to text;
+  v_connected boolean;
+begin
+  if length(trim(p_body)) = 0 then
+    raise exception 'Message cannot be empty.';
+  end if;
+
+  select coalesce(o.parent_order_id, o.id) into v_root_from from nexora_orders o where o.order_code = p_from_order_code;
+  select coalesce(o.parent_order_id, o.id) into v_root_to from nexora_orders o where o.order_code = p_to_order_code;
+
+  if v_root_from is null or v_root_to is null then
+    raise exception 'Unknown order code.';
+  end if;
+
+  if v_root_from = v_root_to then
+    raise exception 'You cannot message yourself.';
+  end if;
+
+  select plan_id into v_plan_from from nexora_orders where id = v_root_from;
+  select plan_id into v_plan_to from nexora_orders where id = v_root_to;
+
+  if v_plan_from not in ('pro', 'business') or v_plan_to not in ('pro', 'business') then
+    raise exception 'Chat is available on the Pro and Business plans.';
+  end if;
+
+  select exists (
+    select 1 from nexora_connections
+    where order_id_a = least(v_root_from, v_root_to) and order_id_b = greatest(v_root_from, v_root_to)
+  ) into v_connected;
+
+  if not v_connected then
+    raise exception 'You need to exchange cards before you can message someone.';
+  end if;
+
+  insert into nexora_messages (from_order_id, to_order_id, body) values (v_root_from, v_root_to, trim(p_body));
+end;
+$$;
+
+grant execute on function send_chat_message(text, text, text) to anon, authenticated;
+
+-- Powers the Messages inbox: one row per connection, with the other
+-- party's current card (so name/company/logo always reflect their latest
+-- edits, not a stale snapshot), the last message, and how many are unread
+-- from their side.
+create or replace function get_conversations(p_order_code text)
+returns table (
+  with_order_code text,
+  with_card jsonb,
+  last_message text,
+  last_message_at timestamptz,
+  unread_count bigint
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with me as (
+    select coalesce(o.parent_order_id, o.id) as root_id
+    from nexora_orders o
+    where o.order_code = p_order_code
+  ),
+  connected as (
+    select
+      case when order_id_a = me.root_id then order_id_b else order_id_a end as other_root_id,
+      created_at as connected_at
+    from nexora_connections, me
+    where me.root_id in (order_id_a, order_id_b)
+  )
+  select
+    other.order_code,
+    other.card,
+    lm.body,
+    lm.created_at,
+    coalesce((
+      select count(*) from nexora_messages m
+      where m.from_order_id = other.id and m.to_order_id = me.root_id and m.read_at is null
+    ), 0)
+  from connected
+  join nexora_orders other on other.id = connected.other_root_id
+  cross join me
+  left join lateral (
+    select body, created_at from nexora_messages m
+    where (m.from_order_id = connected.other_root_id and m.to_order_id = me.root_id)
+       or (m.from_order_id = me.root_id and m.to_order_id = connected.other_root_id)
+    order by m.created_at desc
+    limit 1
+  ) lm on true
+  -- Falls back to when the connection itself was made, so a
+  -- just-exchanged-cards thread with no messages yet still shows up
+  -- (sorted by recency of connection) instead of being pushed to the
+  -- bottom or excluded by the ordering.
+  order by coalesce(lm.created_at, connected.connected_at) desc;
+$$;
+
+grant execute on function get_conversations(text) to anon, authenticated;
+
+-- Full message history between two cardholders, oldest first.
+create or replace function get_chat_messages(p_order_code text, p_with_order_code text)
+returns table (from_order_code text, body text, created_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  with me as (
+    select coalesce(o.parent_order_id, o.id) as root_id
+    from nexora_orders o
+    where o.order_code = p_order_code
+  ),
+  them as (
+    select coalesce(o.parent_order_id, o.id) as root_id
+    from nexora_orders o
+    where o.order_code = p_with_order_code
+  )
+  select sender.order_code, m.body, m.created_at
+  from nexora_messages m, me, them
+  join nexora_orders sender on sender.id = m.from_order_id
+  where (m.from_order_id = me.root_id and m.to_order_id = them.root_id)
+     or (m.from_order_id = them.root_id and m.to_order_id = me.root_id)
+  order by m.created_at asc;
+$$;
+
+grant execute on function get_chat_messages(text, text) to anon, authenticated;
+
+-- Marks every message from the other party as read, called when the
+-- owner opens that thread. Powers the unread badge going back to 0 for
+-- that conversation.
+create or replace function mark_chat_read(p_order_code text, p_with_order_code text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_root_me bigint;
+  v_root_them bigint;
+begin
+  select coalesce(o.parent_order_id, o.id) into v_root_me from nexora_orders o where o.order_code = p_order_code;
+  select coalesce(o.parent_order_id, o.id) into v_root_them from nexora_orders o where o.order_code = p_with_order_code;
+
+  update nexora_messages
+  set read_at = now()
+  where from_order_id = v_root_them and to_order_id = v_root_me and read_at is null;
+end;
+$$;
+
+grant execute on function mark_chat_read(text, text) to anon, authenticated;

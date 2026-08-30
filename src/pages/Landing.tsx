@@ -92,7 +92,7 @@ const PLANS = [
     price: 199,
     cta: "solid" as const,
     popular: true,
-    features: ["Everything in Basic", "Custom Themes & Templates", "Add Your Logo", "Whatsapp Direct Call"],
+    features: ["Everything in Basic", "Custom Themes & Templates", "Add Your Logo", "Whatsapp Direct Call", "In-App Chat"],
     details: [
       {
         title: "Everything in Basic",
@@ -109,6 +109,10 @@ const PLANS = [
       {
         title: "WhatsApp Direct Call",
         body: "Add a WhatsApp contact button that allows visitors to start a conversation with you directly from your digital business card.",
+      },
+      {
+        title: "In-App Chat",
+        body: "Message anyone in your network directly inside NexxaDBC: exchange cards once, then chat any time to follow up, right from your Card Holder. Real-time delivery with sound alerts and an unread badge.",
       },
     ],
   },

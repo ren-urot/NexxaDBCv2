@@ -346,3 +346,110 @@ export function subscribeToOrderEvents(handlers: OrderEventHandlers): () => void
     supabase!.removeChannel(channel);
   };
 }
+
+// Chat (Pro/Business plans). Two cardholders who've exchanged cards (see
+// recordConnection, called from Holder.tsx's scan handler) can message
+// each other directly. Persistence goes through send_chat_message; live
+// delivery is a separate Realtime Broadcast the sender fires on the
+// recipient's own channel, not a postgres_changes subscription: this
+// table has RLS enabled with no policies (same trust model as everywhere
+// else in this app, order_code-as-credential, no login), and Realtime's
+// postgres_changes respects RLS, so a CDC subscription would see nothing
+// for anon/authenticated. Broadcast doesn't read table RLS at all, so an
+// order-code-scoped channel name is consistent with how every other
+// feature here already treats "knowing the order_code" as sufficient
+// access, rather than requiring a real per-row auth policy this app has
+// no user-identity system to support.
+function chatChannelName(orderCode: string): string {
+  return `chat:${orderCode}`;
+}
+
+// Records that two cardholders have exchanged cards, the prerequisite for
+// either of them to message the other. Safe to call on every scan (it's a
+// silent no-op if already connected, or if either side isn't a real
+// order); the actual chat eligibility check (both on Pro/Business) happens
+// at send time instead, so a connection recorded before an upgrade is
+// still usable the moment someone upgrades.
+export async function recordConnection(orderCode: string, scannedOrderCode: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("record_connection", {
+    p_order_code: orderCode,
+    p_scanned_order_code: scannedOrderCode,
+  });
+  if (error) throw error;
+}
+
+export async function sendChatMessage(fromOrderCode: string, toOrderCode: string, body: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.rpc("send_chat_message", {
+    p_from_order_code: fromOrderCode,
+    p_to_order_code: toOrderCode,
+    p_body: body,
+  });
+  if (error) throw error;
+  // Fire-and-forget: the message is already durably saved above, so a
+  // failed/slow broadcast only delays the recipient's live update, never
+  // loses the message (their next getConversations/getChatMessages call
+  // picks it up regardless).
+  supabase.channel(chatChannelName(toOrderCode)).send({
+    type: "broadcast",
+    event: "new_message",
+    payload: { from: fromOrderCode, body },
+  });
+}
+
+export interface ConversationRow {
+  with_order_code: string;
+  with_card: CardData;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export async function getConversations(orderCode: string): Promise<ConversationRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("get_conversations", { p_order_code: orderCode });
+  if (error) throw error;
+  return (data ?? []) as ConversationRow[];
+}
+
+export interface ChatMessageRow {
+  from_order_code: string;
+  body: string;
+  created_at: string;
+}
+
+export async function getChatMessages(orderCode: string, withOrderCode: string): Promise<ChatMessageRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("get_chat_messages", {
+    p_order_code: orderCode,
+    p_with_order_code: withOrderCode,
+  });
+  if (error) throw error;
+  return (data ?? []) as ChatMessageRow[];
+}
+
+export async function markChatRead(orderCode: string, withOrderCode: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("mark_chat_read", {
+    p_order_code: orderCode,
+    p_with_order_code: withOrderCode,
+  });
+  if (error) throw error;
+}
+
+// Subscribes this device's own order_code channel for live incoming
+// messages while the Card Holder is open. Returns an unsubscribe function.
+export function subscribeToChatMessages(
+  orderCode: string,
+  onMessage: (payload: { from: string; body: string }) => void
+): () => void {
+  if (!supabase) return () => {};
+  const channel = supabase
+    .channel(chatChannelName(orderCode))
+    .on("broadcast", { event: "new_message" }, ({ payload }) => onMessage(payload as { from: string; body: string }))
+    .subscribe();
+  return () => {
+    supabase!.removeChannel(channel);
+  };
+}
