@@ -26,7 +26,7 @@ const PLANS = [
     name: "Free Trial",
     desc: "Try it before you buy it",
     price: 0,
-    priceCaption: "15 days free, no card required",
+    priceCaption: "15 days free, no payment required",
     cta: "outline" as const,
     features: [
       "Create 1 Digital Business Card",
@@ -386,7 +386,7 @@ export default function Landing() {
                   <div className="text-[var(--color-muted-fg)] mt-1">{p.desc}</div>
                 </div>
                 <Price value={p.price} />
-                <div className="text-center text-[var(--color-muted-fg)] mb-8">
+                <div className="text-center text-[14px] text-[var(--color-muted-fg)] mb-8 whitespace-nowrap">
                   {(p as { priceCaption?: string }).priceCaption ?? "One-time payment"}
                 </div>
                 <ul className="space-y-3 mb-10 flex-1">
