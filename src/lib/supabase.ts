@@ -68,6 +68,7 @@ export interface OrderRow {
   parent_order_id: number | null;
   is_trial: boolean;
   trial_expires_at: string | null;
+  plan_id: string;
 }
 
 export interface NewOrder {
@@ -88,6 +89,11 @@ export interface NewOrder {
   // Free Trial signup: no payment required, auto-approved immediately,
   // gated again after TRIAL_DAYS unless upgraded via upgradeTrialOrder.
   is_trial?: boolean;
+  // Which plan this root order actually paid for; ignored server-side for
+  // an add-on (inherits the family root's real plan_id instead, see
+  // submit_order). Omit to default to "business" (matches the column
+  // default), but every real signup should always pass this explicitly.
+  plan_id?: string;
 }
 
 export async function fetchOrders(): Promise<OrderRow[]> {
@@ -116,6 +122,7 @@ export async function createOrder(order: NewOrder): Promise<string> {
     p_card: order.card,
     p_parent_order_code: order.parent_order_code ?? null,
     p_is_trial: order.is_trial ?? false,
+    p_plan_id: order.plan_id ?? "business",
   });
   if (error) throw error;
   return data as string;
@@ -131,6 +138,9 @@ export interface UpgradeOrder {
   payment_ref: string;
   notes: string;
   card: CardData;
+  // Which plan this trial is being upgraded to; must be "basic", "pro", or
+  // "business" (never "trial", enforced server-side too).
+  plan_id: string;
 }
 
 // Converts an existing Free Trial order into a real paid one, in place:
@@ -149,6 +159,7 @@ export async function upgradeTrialOrder(order: UpgradeOrder): Promise<void> {
     p_payment_ref: order.payment_ref,
     p_notes: order.notes,
     p_card: order.card,
+    p_plan_id: order.plan_id,
   });
   if (error) throw error;
 }
@@ -198,6 +209,11 @@ export interface PublicCardLookup {
   is_root: boolean;
   is_trial: boolean;
   trial_expires_at: string | null;
+  // Always the family root's plan, even when this lookup is for a team
+  // member's own card (see get_public_card in schema.sql). Gates
+  // Business-only Card Holder features properly: is_root alone used to be
+  // true for any standalone order regardless of tier.
+  plan_id: string;
 }
 
 // Powers the public "scan to view this card" page. SECURITY DEFINER on the
@@ -216,6 +232,7 @@ export interface BusinessCardEntry {
   is_root: boolean;
   is_trial: boolean;
   trial_expires_at: string | null;
+  plan_id: string;
 }
 
 // Powers the Card Holder's "Add New Cards" family list. Accepts any

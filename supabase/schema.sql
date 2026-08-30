@@ -54,6 +54,20 @@ alter table nexora_orders add column if not exists lead_gen_enabled boolean not 
 alter table nexora_orders add column if not exists is_trial boolean not null default false;
 alter table nexora_orders add column if not exists trial_expires_at timestamptz;
 
+-- Which plan this ROOT order actually paid for. Business-only Card Holder
+-- features (Add New Cards, Lead Generation, QR Transfer) were previously
+-- gated only on is_root, which is true for every standalone order
+-- regardless of tier, meaning a Basic or Pro purchaser (or a free trial
+-- signup) could already reach them for free. get_public_card/
+-- get_business_cards now return this so the client can gate on
+-- is_root AND plan_id = 'business' instead. Existing rows default to
+-- 'business' (not 'basic') specifically to avoid retroactively hiding
+-- these features from real Business customers already relying on
+-- them; every NEW order from here on gets its real plan_id explicitly
+-- from submit_order/upgrade_trial_order.
+alter table nexora_orders add column if not exists plan_id text not null default 'business'
+  check (plan_id in ('trial', 'basic', 'pro', 'business'));
+
 -- A payment reference is proof of one specific real-world transaction, so
 -- reusing one (whether by accident or to fraudulently claim a payment that
 -- was never made for this order) must be impossible, not just discouraged
@@ -129,6 +143,7 @@ grant execute on function get_order_status(text, text) to anon, authenticated;
 -- drop the old shape explicitly so there's only ever one submit_order.
 drop function if exists submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb);
 drop function if exists submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb, text);
+drop function if exists submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb, text, boolean);
 
 -- Creates an order via a SECURITY DEFINER function instead of a raw table
 -- insert. This bypasses RLS internally (the function runs as its owner,
@@ -149,7 +164,8 @@ create or replace function submit_order(
   p_notes text,
   p_card jsonb,
   p_parent_order_code text default null,
-  p_is_trial boolean default false
+  p_is_trial boolean default false,
+  p_plan_id text default 'business'
 )
 returns text
 language plpgsql
@@ -162,7 +178,12 @@ declare
   v_family_count int;
   v_initial_status text := 'submitted';
   v_trial_expires_at timestamptz := null;
+  v_plan_id text := p_plan_id;
+  v_root_plan_id text;
 begin
+  if p_plan_id not in ('trial', 'basic', 'pro', 'business') then
+    raise exception 'Invalid plan_id: %', p_plan_id;
+  end if;
   -- Free Trial is a standalone-only entry point: never an add-on. Guards
   -- against a direct RPC call attaching a trial expiry to what should be
   -- one of the Business plan's free/paid family slots (see below).
@@ -182,6 +203,20 @@ begin
     if v_parent_id is null then
       raise exception 'Unknown parent order code: %', p_parent_order_code;
     end if;
+
+    -- "Add New Cards" is Business-exclusive, not something a Basic/Pro
+    -- (or trial) root can unlock even by paying the add-on price: this is
+    -- a real server-side check, not just a hidden UI button, since the
+    -- RPC itself is the only enforcement boundary this app has (no RLS
+    -- policies restrict it). Also pins plan_id to the root's actual plan
+    -- for the new row, ignoring whatever p_plan_id the caller passed:
+    -- what plan a family is on is a fact about the root, not something
+    -- each add-on's own insert gets to assert independently.
+    select plan_id into v_root_plan_id from nexora_orders where id = v_parent_id;
+    if v_root_plan_id <> 'business' then
+      raise exception 'Add New Cards is a Business plan feature.';
+    end if;
+    v_plan_id := v_root_plan_id;
 
     select count(*) into v_family_count
     from nexora_orders where id = v_parent_id or parent_order_id = v_parent_id;
@@ -218,12 +253,12 @@ begin
     insert into nexora_orders (
       customer, email, template, amount, amount_usd, exchange_rate,
       method, payment_ref, notes, status, card, parent_order_id,
-      is_trial, trial_expires_at
+      is_trial, trial_expires_at, plan_id
     )
     values (
       p_customer, p_email, p_template, p_amount, p_amount_usd, p_exchange_rate,
       p_method, p_payment_ref, p_notes, v_initial_status, p_card, v_parent_id,
-      p_is_trial, v_trial_expires_at
+      p_is_trial, v_trial_expires_at, v_plan_id
     )
     returning order_code into v_order_code;
   exception when unique_violation then
@@ -234,7 +269,7 @@ begin
 end;
 $$;
 
-grant execute on function submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb, text, boolean)
+grant execute on function submit_order(text, text, text, integer, numeric, numeric, text, text, text, jsonb, text, boolean, text)
   to anon, authenticated;
 
 -- Converts a Free Trial order into a real paid one, in place: same
@@ -252,7 +287,8 @@ create or replace function upgrade_trial_order(
   p_method text,
   p_payment_ref text,
   p_notes text,
-  p_card jsonb
+  p_card jsonb,
+  p_plan_id text
 )
 returns void
 language plpgsql
@@ -262,6 +298,10 @@ as $$
 declare
   v_count int;
 begin
+  if p_plan_id not in ('basic', 'pro', 'business') then
+    raise exception 'Invalid plan_id: %', p_plan_id;
+  end if;
+
   if p_payment_ref <> '' and exists (select 1 from nexora_orders where payment_ref = p_payment_ref) then
     raise exception 'This payment reference number has already been submitted. Each reference can only be used once.';
   end if;
@@ -278,7 +318,8 @@ begin
       card = p_card,
       status = 'submitted',
       is_trial = false,
-      trial_expires_at = null
+      trial_expires_at = null,
+      plan_id = p_plan_id
     where order_code = p_order_code and is_trial = true;
     get diagnostics v_count = row_count;
   exception when unique_violation then
@@ -291,7 +332,7 @@ begin
 end;
 $$;
 
-grant execute on function upgrade_trial_order(text, text, integer, numeric, numeric, text, text, text, jsonb)
+grant execute on function upgrade_trial_order(text, text, integer, numeric, numeric, text, text, text, jsonb, text)
   to anon, authenticated;
 
 -- Powers the Card Holder's "Add New Cards" list: given any order_code that
@@ -306,7 +347,7 @@ drop function if exists get_business_cards(text);
 create or replace function get_business_cards(p_order_code text)
 returns table (
   order_code text, card jsonb, status text, is_root boolean,
-  is_trial boolean, trial_expires_at timestamptz
+  is_trial boolean, trial_expires_at timestamptz, plan_id text
 )
 language sql
 security definer
@@ -318,9 +359,13 @@ as $$
     where o.order_code = p_order_code
     limit 1
   )
+  -- plan_id always comes from the root row, not each card's own column:
+  -- what plan this family is on is a family-wide fact, not something an
+  -- add-on card's own row is the source of truth for.
   select o.order_code, o.card, o.status, (o.parent_order_id is null) as is_root,
-    o.is_trial, o.trial_expires_at
+    o.is_trial, o.trial_expires_at, root.plan_id
   from nexora_orders o, target t
+  join nexora_orders root on root.id = t.root_id
   where o.id = t.root_id or o.parent_order_id = t.root_id
   order by o.id asc;
 $$;
@@ -351,15 +396,19 @@ drop function if exists get_public_card(text);
 create or replace function get_public_card(p_order_code text)
 returns table (
   card jsonb, status text, lead_gen_enabled boolean, is_root boolean,
-  is_trial boolean, trial_expires_at timestamptz
+  is_trial boolean, trial_expires_at timestamptz, plan_id text
 )
 language sql
 security definer
 set search_path = public
 as $$
+  -- plan_id always comes from the root row (see get_business_cards for
+  -- why), so this is correct even when p_order_code is a team member's
+  -- own add-on card, not just when it's the root.
   select o.card, o.status, o.lead_gen_enabled, (o.parent_order_id is null) as is_root,
-    o.is_trial, o.trial_expires_at
+    o.is_trial, o.trial_expires_at, root.plan_id
   from nexora_orders o
+  join nexora_orders root on root.id = coalesce(o.parent_order_id, o.id)
   where o.order_code = p_order_code
   limit 1;
 $$;

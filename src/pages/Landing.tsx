@@ -174,8 +174,8 @@ function PlanInfoTooltip({ items }: { items: { title: string; body: string }[] }
           <div className="absolute right-0 top-8 z-20 w-72 max-w-[80vw] bg-[var(--color-background)] border border-[var(--color-border)] rounded-[14px] shadow-lg p-5 text-left space-y-4">
             {items.map((it) => (
               <div key={it.title}>
-                <div className="text-sm font-semibold text-[var(--color-foreground)] mb-1">{it.title}</div>
-                <div className="text-xs text-[var(--color-muted-fg)] leading-relaxed">{it.body}</div>
+                <div className="text-[13px] font-semibold text-[var(--color-foreground)] mb-1">{it.title}</div>
+                <div className="text-[13px] text-[var(--color-muted-fg)] leading-relaxed">{it.body}</div>
               </div>
             ))}
           </div>

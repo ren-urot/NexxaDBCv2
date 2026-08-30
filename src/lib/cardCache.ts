@@ -14,6 +14,7 @@ export interface CachedCard {
   is_root: boolean;
   is_trial: boolean;
   trial_expires_at: string | null;
+  plan_id: string;
 }
 
 const PREFIX = "nexora_card_cache_v1:";

@@ -592,6 +592,11 @@ export default function Holder() {
   const [isRootCard, setIsRootCard] = useState(true);
   const [isTrialCard, setIsTrialCard] = useState(false);
   const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
+  // Always the family root's plan (see get_public_card in schema.sql),
+  // even when viewing a team member's own card. is_root alone used to be
+  // treated as "this is a Business purchaser", but it's true for any
+  // standalone order regardless of tier; this is the real gate.
+  const [rootPlanId, setRootPlanId] = useState("business");
 
   useEffect(() => {
     if (navState?.card || !params.orderCode) return;
@@ -611,6 +616,7 @@ export default function Holder() {
             setIsRootCard(cached.is_root);
             setIsTrialCard(cached.is_trial);
             setTrialExpiresAt(cached.trial_expires_at);
+            setRootPlanId(cached.plan_id);
             setScannedState("ready");
             return;
           }
@@ -627,6 +633,7 @@ export default function Holder() {
         setIsRootCard(result.is_root);
         setIsTrialCard(result.is_trial);
         setTrialExpiresAt(result.trial_expires_at);
+        setRootPlanId(result.plan_id);
         setScannedState("ready");
         cacheCard(params.orderCode!, {
           card: result.card,
@@ -635,6 +642,7 @@ export default function Holder() {
           is_root: result.is_root,
           is_trial: result.is_trial,
           trial_expires_at: result.trial_expires_at,
+          plan_id: result.plan_id,
         });
       })
       .catch(() => {
@@ -649,6 +657,7 @@ export default function Holder() {
           setIsRootCard(cached.is_root);
           setIsTrialCard(cached.is_trial);
           setTrialExpiresAt(cached.trial_expires_at);
+          setRootPlanId(cached.plan_id);
           setScannedState("ready");
           return;
         }
@@ -696,6 +705,7 @@ export default function Holder() {
         if (cancelled || !result) return;
         setLeadGenEnabledState(result.lead_gen_enabled);
         setIsRootCard(result.is_root);
+        setRootPlanId(result.plan_id);
       })
       .catch(() => {
         // Non-critical: the toggle just stays at its default until a
@@ -782,7 +792,8 @@ export default function Holder() {
   // here: the first 5 members (root + 5 = 6 total) are free, and submit_order
   // itself decides server-side whether a card beyond that requires payment,
   // so this button just always stays available to the owner.
-  const canAddCard = Boolean(orderCode) && isOwnerDevice && familySize > 0 && isRootCard;
+  const canAddCard =
+    Boolean(orderCode) && isOwnerDevice && familySize > 0 && isRootCard && rootPlanId === "business";
 
   const realCards: SavedCard[] = [...ownCards, ...collectedCards];
   const cards = realCards.length > 0 ? realCards : SAMPLE_CARDS;
@@ -977,7 +988,7 @@ export default function Holder() {
               <ChevronLeft size={22} />
             </button>
             <div className="flex-1 text-white text-[15px] font-semibold">My Digital Business Card</div>
-            {isOwnerDevice && orderCode && isRootCard && (
+            {isOwnerDevice && orderCode && isRootCard && rootPlanId === "business" && (
               <button
                 onClick={() => setLeadSettingsTarget(orderCode)}
                 className="text-white/50 hover:text-white transition-colors"
@@ -1071,7 +1082,7 @@ export default function Holder() {
                 >
                   <ScanLine size={20} />
                 </button>
-                {isOwnerDevice && orderCode && isRootCard && (
+                {isOwnerDevice && orderCode && isRootCard && rootPlanId === "business" && (
                   <button
                     onClick={() => setTransferOpen(true)}
                     className="text-white/50 hover:text-white transition-colors"
@@ -1184,7 +1195,7 @@ export default function Holder() {
                 their own family, not just their own root card, so team
                 members' cards can also require contact info from
                 whoever scans them. */}
-            {isOwnerDevice && isRootCard && ownCards.some((c) => c.id === selectedCard.id) && (
+            {isOwnerDevice && isRootCard && rootPlanId === "business" && ownCards.some((c) => c.id === selectedCard.id) && (
               <button
                 onClick={() => setLeadSettingsTarget(selectedCard.id)}
                 className="text-white/50 hover:text-white transition-colors"

@@ -468,6 +468,7 @@ export default function Builder() {
         notes: "Free trial signup",
         card,
         is_trial: true,
+        plan_id: "trial",
       });
       setOrderCode(code);
       markOwnedOrder(code);
@@ -502,6 +503,7 @@ export default function Builder() {
         payment_ref: paymentRef,
         notes: proofNote,
         card,
+        plan_id: plan.id,
       });
       setOrderCode(upgradeFrom.orderCode);
       setLiveStatus("submitted");
@@ -1089,6 +1091,7 @@ export default function Builder() {
                         notes: proofNote,
                         card,
                         parent_order_code: addOn?.addTo ?? null,
+                        plan_id: plan.id,
                       });
                       setOrderCode(code);
                       markOwnedOrder(code);
