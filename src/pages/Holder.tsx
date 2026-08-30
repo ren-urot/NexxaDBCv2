@@ -1127,6 +1127,14 @@ export default function Holder() {
       >
         <InstallPrompt />
         <div className="flex-1">{content}</div>
+        {!(tab === "my-cards" && !holderOpen) && (
+          <button
+            onClick={() => navigate("/")}
+            className="text-[9px] tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors py-3 text-center"
+          >
+            NexxaDBC
+          </button>
+        )}
       </div>
     );
   }
