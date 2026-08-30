@@ -15,8 +15,8 @@ import { LinkedinIcon, FacebookIcon, InstagramIcon } from "../components/SocialI
 import type { CardData, CardTheme, BuilderStep, BackgroundStyle, PaymentStatus } from "../types";
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
-import { resolvePlan } from "../data/plans";
-import { createOrder, getOrderStatus, getPublicCard, supabaseConfigured, getErrorMessage } from "../lib/supabase";
+import { resolvePlan, daysRemaining } from "../data/plans";
+import { createOrder, upgradeTrialOrder, getOrderStatus, getPublicCard, supabaseConfigured, getErrorMessage } from "../lib/supabase";
 import { markOwnedOrder } from "../lib/deviceOwnership";
 import { compressImageToDataUrl } from "../lib/imageCompress";
 import { usePageMeta } from "../lib/pageMeta";
@@ -172,6 +172,7 @@ interface BuilderSession {
   proofNote: string;
   liveStatus: PaymentStatus;
   orderCode: string | null;
+  trialExpiresAt: string | null;
 }
 
 const SESSION_KEY = "nexora_builder_session_v1";
@@ -203,6 +204,15 @@ const ADD_ON_PRICE_PHP = 199;
 // The Business plan bundles the root card + 5 free team members (6 total).
 const FREE_FAMILY_SIZE = 6;
 
+// Converting a Free Trial card into a real paid one, in place (same
+// order_code, so any QR/link the customer already handed out keeps
+// working). Set once the customer picks a real plan to upgrade to, either
+// from Builder's own trial status screen or from Holder.tsx.
+interface UpgradeFromState {
+  orderCode: string;
+  card: CardData;
+}
+
 // Personal fields cleared when starting a new card from an existing
 // family's branding; everything else (template, colors, logo,
 // background, company) carries over so every card in the family matches.
@@ -224,10 +234,17 @@ export default function Builder() {
   usePageMeta("Create Your Card | NexxaDBC", true);
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { plan?: string; addOn?: AddOnState } | null;
+  const locationState = location.state as
+    | { plan?: string; addOn?: AddOnState; upgradeFrom?: UpgradeFromState }
+    | null;
   const plan = resolvePlan(locationState?.plan);
   const addOn = locationState?.addOn ?? null;
-  const sessionKey = addOn ? `nexora_builder_addon_session_v1:${addOn.addTo}` : SESSION_KEY;
+  const upgradeFrom = locationState?.upgradeFrom ?? null;
+  const sessionKey = addOn
+    ? `nexora_builder_addon_session_v1:${addOn.addTo}`
+    : upgradeFrom
+    ? `nexora_builder_upgrade_session_v1:${upgradeFrom.orderCode}`
+    : SESSION_KEY;
   const savedSession = loadBuilderSession(sessionKey);
 
   // An add-on card inherits its family's branding untouched and skips
@@ -236,8 +253,13 @@ export default function Builder() {
   // A free slot (this card's position is within the plan's included 6)
   // skips the payment step entirely too, straight to status.
   const isFreeAddOn = Boolean(addOn) && addOn!.familySize < FREE_FAMILY_SIZE;
+  // Free Trial signup: no payment required at all, so skip that step
+  // entirely too, same reasoning as a free add-on slot.
+  const isTrial = !addOn && plan.id === "trial";
   const activeSteps = addOn
     ? STEPS.filter((s) => s.id === "details" || (s.id === "payment" && !isFreeAddOn) || s.id === "status")
+    : isTrial
+    ? STEPS.filter((s) => s.id !== "payment")
     : STEPS;
 
   const [step, setStep] = useState<BuilderStep>(savedSession?.step ?? (addOn ? "details" : "template"));
@@ -245,6 +267,8 @@ export default function Builder() {
     savedSession?.card ??
       (addOn
         ? { ...addOn.brandingCard, ...Object.fromEntries(ADD_ON_RESET_FIELDS.map((k) => [k, ""])) }
+        : upgradeFrom
+        ? upgradeFrom.card
         : { ...EMPTY_CARD, template: plan.templates[0] })
   );
   const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank" | "wise">(savedSession?.paymentMethod ?? "gcash");
@@ -258,6 +282,7 @@ export default function Builder() {
   const [compressingBackground, setCompressingBackground] = useState(false);
   const [liveStatus, setLiveStatus] = useState<PaymentStatus>(savedSession?.liveStatus ?? "submitted");
   const [orderCode, setOrderCode] = useState<string | null>(savedSession?.orderCode ?? null);
+  const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(savedSession?.trialExpiresAt ?? null);
   const [provisioningQrDataUrl, setProvisioningQrDataUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -268,14 +293,14 @@ export default function Builder() {
     try {
       sessionStorage.setItem(
         sessionKey,
-        JSON.stringify({ step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode })
+        JSON.stringify({ step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode, trialExpiresAt })
       );
     } catch {
       // Storage can be unavailable (private mode, quota); losing resume
       // state isn't worth surfacing an error over.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode]);
+  }, [step, card, paymentMethod, paymentRef, proofNote, liveStatus, orderCode, trialExpiresAt]);
 
   // Only a verified payment should hand out a working QR: generating and
   // showing it while still "submitted"/"under_verification" would let
@@ -423,6 +448,72 @@ export default function Builder() {
     }
   };
 
+  // Free Trial: no payment at all, auto-approved server-side (see
+  // submit_order's p_is_trial branch). Reads back the real trial_expires_at
+  // rather than computing it client-side, so display stays accurate even
+  // if clocks disagree.
+  const submitTrial = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const code = await createOrder({
+        customer: `${card.firstName} ${card.lastName}`.trim(),
+        email: card.email,
+        template: card.template,
+        amount: 0,
+        amount_usd: 0,
+        exchange_rate: PHP_PER_USD,
+        method: "gcash",
+        payment_ref: "",
+        notes: "Free trial signup",
+        card,
+        is_trial: true,
+      });
+      setOrderCode(code);
+      markOwnedOrder(code);
+      const result = await getPublicCard(code);
+      if (result) {
+        setLiveStatus(result.status);
+        setTrialExpiresAt(result.trial_expires_at);
+      }
+      setStep("status");
+    } catch (err) {
+      setSubmitError(getErrorMessage(err, "Failed to start your free trial. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Converts this trial into a real paid order, in place (same
+  // order_code). Reuses the normal payment fields the Payment step already
+  // collected; only the RPC and target differ from a brand-new purchase.
+  const submitUpgrade = async () => {
+    if (!upgradeFrom) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await upgradeTrialOrder({
+        order_code: upgradeFrom.orderCode,
+        template: card.template,
+        amount: effectivePrice,
+        amount_usd: phpToUsd(effectivePrice),
+        exchange_rate: PHP_PER_USD,
+        method: paymentMethod,
+        payment_ref: paymentRef,
+        notes: proofNote,
+        card,
+      });
+      setOrderCode(upgradeFrom.orderCode);
+      setLiveStatus("submitted");
+      setTrialExpiresAt(null);
+      goNext();
+    } catch (err) {
+      setSubmitError(getErrorMessage(err, "Failed to submit payment. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!cardRef.current) return;
     setDownloadingPdf(true);
@@ -453,11 +544,22 @@ export default function Builder() {
             <Logo height={18} />
           </button>
           <button
-            onClick={() => navigate(addOn ? `/holder/${addOn.addTo}` : "/", { state: undefined })}
+            onClick={() =>
+              navigate(
+                addOn ? `/holder/${addOn.addTo}` : upgradeFrom ? `/holder/${upgradeFrom.orderCode}` : "/",
+                { state: undefined }
+              )
+            }
             className="hidden md:flex items-center gap-1.5 text-[10px] tracking-widest uppercase border border-[var(--color-border)] rounded-full px-3 py-1.5 text-[var(--color-muted-fg)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
           >
             <Sparkles size={11} />{" "}
-            {addOn ? (isFreeAddOn ? "Free Team Member" : "Add-on Card") : `${plan.name} Plan`}
+            {addOn
+              ? isFreeAddOn
+                ? "Free Team Member"
+                : "Add-on Card"
+              : upgradeFrom
+              ? `Upgrade to ${plan.name}`
+              : `${plan.name} Plan`}
           </button>
         </div>
 
@@ -840,12 +942,21 @@ export default function Builder() {
                 ))}
               </div>
 
+              {isTrial && submitError && (
+                <div className="mb-6 text-[10px] text-red-600 bg-red-50 border border-red-200 px-4 py-3">
+                  {submitError}
+                </div>
+              )}
               <div className="mt-10 flex justify-between">
                 <button onClick={goBack} className="text-xs tracking-widest uppercase text-[var(--color-muted-fg)] px-6 py-3 border border-[var(--color-border)] hover:border-[var(--color-foreground)] transition-colors">
                   Back
                 </button>
-                <button onClick={goNext} className="bg-[var(--color-accent)] text-white text-xs tracking-widest uppercase px-10 py-3 hover:opacity-90 transition-opacity">
-                  Get My Digital Card →
+                <button
+                  disabled={isTrial && submitting}
+                  onClick={isTrial ? submitTrial : goNext}
+                  className="bg-[var(--color-accent)] text-white text-xs tracking-widest uppercase px-10 py-3 hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  {isTrial ? (submitting ? "Starting…" : "Start My Free Trial →") : "Get My Digital Card →"}
                 </button>
               </div>
             </div>
@@ -864,7 +975,11 @@ export default function Builder() {
                 <div>
                   <div className="text-xs text-[var(--color-muted-fg)] tracking-wide">Digital Business Card + Holder</div>
                   <div className="text-sm font-medium text-[var(--color-foreground)] mt-0.5">
-                    {addOn ? "Add-on card · One-time purchase" : `${plan.name} plan · One-time purchase`}
+                    {addOn
+                      ? "Add-on card · One-time purchase"
+                      : upgradeFrom
+                      ? `Upgrade to ${plan.name} · One-time purchase`
+                      : `${plan.name} plan · One-time purchase`}
                   </div>
                 </div>
                 <div className="text-right">
@@ -955,6 +1070,10 @@ export default function Builder() {
                       goNext();
                       return;
                     }
+                    if (upgradeFrom) {
+                      await submitUpgrade();
+                      return;
+                    }
                     setSubmitting(true);
                     setSubmitError(null);
                     try {
@@ -989,7 +1108,72 @@ export default function Builder() {
             </div>
           )}
 
-          {step === "status" && (
+          {step === "status" && isTrial && (
+            <div className="max-w-xl mx-auto px-8 py-12 text-center">
+              <div className="inline-flex items-center gap-2 border border-[var(--color-border)] px-4 py-2 text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-10">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Free Trial Active
+              </div>
+
+              <h2 className="text-3xl tracking-tight text-[var(--color-foreground)] mb-4">
+                Your free trial has started
+              </h2>
+              <p className="text-sm text-[var(--color-muted-fg)] leading-relaxed mb-12 max-w-sm mx-auto">
+                {trialExpiresAt
+                  ? `You have full access for ${daysRemaining(trialExpiresAt)} more day${daysRemaining(trialExpiresAt) === 1 ? "" : "s"} (until ${new Date(trialExpiresAt).toLocaleDateString()}). Upgrade anytime to keep your card working after that; if not, it's deactivated until you do.`
+                  : "Your card is active for a limited time. Upgrade anytime to keep it working permanently."}
+              </p>
+
+              <div className="border border-[var(--color-border)] p-8 mb-8">
+                <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-6">
+                  Your Card QR
+                </div>
+                <div className="flex justify-center mb-4">
+                  <div className="w-44 h-44 bg-[var(--color-muted)] flex items-center justify-center border border-[var(--color-border)]">
+                    {provisioningQrDataUrl ? (
+                      <img src={provisioningQrDataUrl} alt="QR code linking to your digital business card" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-5 h-5 border-2 border-[var(--color-border)] border-t-[var(--color-foreground)] rounded-full animate-spin" />
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-[var(--color-muted-fg)] leading-relaxed">
+                  Scan this QR to open your digital business card. Share it with anyone.
+                </p>
+              </div>
+
+              <div className="border border-[var(--color-border)] p-8 mb-8 text-left">
+                <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4 text-center">
+                  Upgrade to keep it permanently
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {(["basic", "pro", "business"] as const).map((id) => (
+                    <button
+                      key={id}
+                      onClick={() =>
+                        orderCode &&
+                        navigate("/builder", {
+                          state: { plan: id, upgradeFrom: { orderCode, card } },
+                        })
+                      }
+                      className="border border-[var(--color-border)] py-3 text-xs tracking-widest uppercase text-[var(--color-foreground)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
+                    >
+                      {resolvePlan(id).name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate(`/holder/${orderCode}`, { state: { card, orderCode } })}
+                className="text-xs tracking-widest uppercase text-[var(--color-muted-fg)] hover:text-[var(--color-foreground)] transition-colors"
+              >
+                Not now, take me to my card →
+              </button>
+            </div>
+          )}
+
+          {step === "status" && !isTrial && (
             <div className="max-w-xl mx-auto px-8 py-12 text-center">
               <div className="inline-flex items-center gap-2 border border-[var(--color-border)] px-4 py-2 text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-10">
                 <div className={`w-1.5 h-1.5 rounded-full ${liveStatus === "rejected" ? "bg-red-500" : "bg-amber-400 animate-pulse"}`} />

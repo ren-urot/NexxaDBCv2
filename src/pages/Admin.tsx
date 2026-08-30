@@ -100,6 +100,7 @@ function toAdminOrder(row: OrderRow): AdminOrder {
     status: row.status,
     submittedAt: row.submitted_at.slice(0, 16).replace("T", " "),
     card: row.card,
+    isTrial: row.is_trial,
   };
 }
 
@@ -557,7 +558,9 @@ function AdminDashboard() {
                             <span className="text-[var(--color-foreground)] font-medium">{o.customer}</span>
                             <span className="capitalize text-[var(--color-muted-fg)]">{o.template}</span>
                             <span className="uppercase text-[var(--color-muted-fg)]">{o.method}</span>
-                            <span className="text-[var(--color-foreground)]">₱{o.amount}</span>
+                            <span className="text-[var(--color-foreground)]">
+                              {o.isTrial ? <span className="text-[10px] uppercase text-amber-600">Trial</span> : `₱${o.amount}`}
+                            </span>
                             <span className={`text-[10px] border px-2 py-0.5 w-fit ${STATUS_COLORS[o.status]}`}>
                               {STATUS_LABELS[o.status]}
                             </span>

@@ -22,6 +22,35 @@ const STEPS = [
 
 const PLANS = [
   {
+    id: "trial",
+    name: "Free Trial",
+    desc: "Try it before you buy it",
+    price: 0,
+    priceCaption: "15 days free, no card required",
+    cta: "outline" as const,
+    features: [
+      "Create 1 Digital Business Card",
+      "Custom Profile & Contact Info",
+      "QR Code for Card Sharing",
+      "Free for 15 Days",
+    ],
+    details: [
+      {
+        title: "Free for 15 Days",
+        body: "Try a real digital business card for 15 days at no cost, no payment required to start. After the trial, upgrade to Basic, Pro, or Business (a one-time payment) to keep using it. If not upgraded, the card is deactivated until you do.",
+      },
+      {
+        title: "1 Digital Business Card",
+        body: "Create one professional digital business card that you can easily share with clients, customers, and contacts.",
+      },
+      {
+        title: "QR Code for Card Sharing",
+        body: "Share your digital business card instantly by letting others scan your unique QR code with their phone.",
+      },
+    ],
+  },
+  {
+    id: "basic",
     name: "Basic",
     desc: "Perfect for individuals",
     price: 99,
@@ -57,6 +86,7 @@ const PLANS = [
     ],
   },
   {
+    id: "pro",
     name: "Pro",
     desc: "Best for professional",
     price: 199,
@@ -83,6 +113,7 @@ const PLANS = [
     ],
   },
   {
+    id: "business",
     name: "Business",
     desc: "For teams & companies",
     price: 499,
@@ -155,6 +186,15 @@ function PlanInfoTooltip({ items }: { items: { title: string; body: string }[] }
 }
 
 function Price({ value }: { value: number }) {
+  if (value === 0) {
+    return (
+      <div className="text-center">
+        <span className="text-[44px] font-semibold tracking-tight text-[var(--color-foreground)] leading-none">
+          Free
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="text-center">
       <div className="flex items-end justify-center gap-1">
@@ -318,9 +358,9 @@ export default function Landing() {
           Simple, <span className="text-[var(--color-accent)]">One-Time</span> Pricing
         </h2>
         <p className="text-center text-lg text-[var(--color-muted-fg)] mb-16">
-          Pay once. Use forever. No monthly fees.
+          Try it free for 15 days. Then pay once, use forever. No monthly fees.
         </p>
-        <div className="max-w-[1200px] mx-auto grid md:grid-cols-3 gap-8 items-stretch">
+        <div className="max-w-[1320px] mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
           {PLANS.map((p) => {
             const isActive = (p as { active?: boolean }).active !== false;
             return (
@@ -346,7 +386,9 @@ export default function Landing() {
                   <div className="text-[var(--color-muted-fg)] mt-1">{p.desc}</div>
                 </div>
                 <Price value={p.price} />
-                <div className="text-center text-[var(--color-muted-fg)] mb-8">One-time payment</div>
+                <div className="text-center text-[var(--color-muted-fg)] mb-8">
+                  {(p as { priceCaption?: string }).priceCaption ?? "One-time payment"}
+                </div>
                 <ul className="space-y-3 mb-10 flex-1">
                   {p.features.map((f) => {
                     const parenIndex = f.indexOf("(");
@@ -369,7 +411,7 @@ export default function Landing() {
                     // Starting a genuinely new order: any in-progress session
                     // from a previous purchase shouldn't leak into this one.
                     sessionStorage.removeItem("nexora_builder_session_v1");
-                    navigate("/builder", { state: { plan: p.name.toLowerCase() } });
+                    navigate("/builder", { state: { plan: p.id } });
                   }}
                   disabled={!isActive}
                   className={`w-full py-3 rounded-[7px] font-medium transition-colors mt-auto ${

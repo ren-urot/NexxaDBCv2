@@ -1,6 +1,6 @@
 export type CardTheme = "corporate" | "professional" | "modern" | "minimal" | "executive" | "creative";
 
-export type PlanId = "basic" | "pro" | "business";
+export type PlanId = "trial" | "basic" | "pro" | "business";
 
 export interface Plan {
   id: PlanId;
@@ -59,4 +59,5 @@ export interface Order {
   status: PaymentStatus;
   submittedAt: string;
   card: CardData;
+  isTrial: boolean;
 }

@@ -66,6 +66,8 @@ export interface OrderRow {
   card: CardData;
   created_at: string;
   parent_order_id: number | null;
+  is_trial: boolean;
+  trial_expires_at: string | null;
 }
 
 export interface NewOrder {
@@ -83,6 +85,9 @@ export interface NewOrder {
   // child) this new card should be attached to. Omit/null for a normal,
   // standalone order.
   parent_order_code?: string | null;
+  // Free Trial signup: no payment required, auto-approved immediately,
+  // gated again after TRIAL_DAYS unless upgraded via upgradeTrialOrder.
+  is_trial?: boolean;
 }
 
 export async function fetchOrders(): Promise<OrderRow[]> {
@@ -110,9 +115,42 @@ export async function createOrder(order: NewOrder): Promise<string> {
     p_notes: order.notes,
     p_card: order.card,
     p_parent_order_code: order.parent_order_code ?? null,
+    p_is_trial: order.is_trial ?? false,
   });
   if (error) throw error;
   return data as string;
+}
+
+export interface UpgradeOrder {
+  order_code: string;
+  template: CardTheme;
+  amount: number;
+  amount_usd: number;
+  exchange_rate: number;
+  method: "gcash" | "bank" | "wise";
+  payment_ref: string;
+  notes: string;
+  card: CardData;
+}
+
+// Converts an existing Free Trial order into a real paid one, in place:
+// same order_code, so any QR/link already handed out keeps working. Only
+// ever succeeds against a row that's still is_trial = true server-side
+// (see upgrade_trial_order in schema.sql).
+export async function upgradeTrialOrder(order: UpgradeOrder): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.rpc("upgrade_trial_order", {
+    p_order_code: order.order_code,
+    p_template: order.template,
+    p_amount: order.amount,
+    p_amount_usd: order.amount_usd,
+    p_exchange_rate: order.exchange_rate,
+    p_method: order.method,
+    p_payment_ref: order.payment_ref,
+    p_notes: order.notes,
+    p_card: order.card,
+  });
+  if (error) throw error;
 }
 
 export async function updateOrderStatus(id: number, status: PaymentStatus): Promise<void> {
@@ -158,6 +196,8 @@ export interface PublicCardLookup {
   // original Business plan purchaser only; a team member's card only
   // ever gets Pro-tier UI.
   is_root: boolean;
+  is_trial: boolean;
+  trial_expires_at: string | null;
 }
 
 // Powers the public "scan to view this card" page. SECURITY DEFINER on the
@@ -174,6 +214,8 @@ export interface BusinessCardEntry {
   card: CardData;
   status: PaymentStatus;
   is_root: boolean;
+  is_trial: boolean;
+  trial_expires_at: string | null;
 }
 
 // Powers the Card Holder's "Add New Cards" family list. Accepts any

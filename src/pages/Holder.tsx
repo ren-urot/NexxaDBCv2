@@ -29,6 +29,7 @@ import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwne
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
 import { cacheCard, getCachedCard } from "../lib/cardCache";
 import { usePageMeta } from "../lib/pageMeta";
+import { isTrialExpired, daysRemaining, resolvePlan } from "../data/plans";
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -202,6 +203,59 @@ function RealDbcCard({ data, qrUrl }: { data: CardData; qrUrl?: string }) {
             <img src={qrDataUrl} alt="Scan to view this card" className="w-12 h-12" />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Free Trial: shown in place of the card once trial_expires_at has passed
+// and it was never upgraded. Two very different audiences see this same
+// gate, so the copy branches hard: the owner gets the real reason and a
+// direct path to fix it; a visitor who just scanned this card gets a
+// generic "not available" message, not a stranger's billing status.
+function TrialExpiredGate({
+  isOwner,
+  orderCode,
+  card,
+  trialExpiresAt,
+  navigate,
+}: {
+  isOwner: boolean;
+  orderCode: string;
+  card: CardData;
+  trialExpiresAt: string | null;
+  navigate: (to: string, opts?: { state?: unknown }) => void;
+}) {
+  if (!isOwner) {
+    return (
+      <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col items-center justify-center px-6 text-center">
+        <div className="max-w-sm">
+          <h1 className="text-white text-xl font-semibold mb-2">This card isn't available right now</h1>
+          <p className="text-white/50 text-xs leading-relaxed">Please check back later.</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-screen w-full bg-[var(--color-foreground)] flex flex-col items-center justify-center px-6 text-center">
+      <div className="w-full max-w-sm">
+        <div className="text-white/40 text-[10px] tracking-widest uppercase mb-3">Free Trial Ended</div>
+        <h1 className="text-white text-xl font-semibold mb-2">Your free trial has ended</h1>
+        <p className="text-white/50 text-xs leading-relaxed mb-8">
+          {trialExpiresAt ? `Your 15-day trial ended on ${new Date(trialExpiresAt).toLocaleDateString()}. ` : ""}
+          Upgrade to a paid plan to keep your card working. It stays deactivated until then.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {(["basic", "pro", "business"] as const).map((id) => (
+            <button
+              key={id}
+              onClick={() => navigate("/builder", { state: { plan: id, upgradeFrom: { orderCode, card } } })}
+              className="border border-white/20 py-3 text-xs tracking-widest uppercase text-white hover:border-white transition-colors"
+            >
+              {resolvePlan(id).name}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -536,6 +590,8 @@ export default function Holder() {
   // ever affects the card's own owner seeing their own controls flash
   // briefly, never a third party; see get_public_card's is_root comment.
   const [isRootCard, setIsRootCard] = useState(true);
+  const [isTrialCard, setIsTrialCard] = useState(false);
+  const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (navState?.card || !params.orderCode) return;
@@ -553,6 +609,8 @@ export default function Holder() {
             setScannedCard(cached.card);
             setLeadGenEnabledState(cached.lead_gen_enabled);
             setIsRootCard(cached.is_root);
+            setIsTrialCard(cached.is_trial);
+            setTrialExpiresAt(cached.trial_expires_at);
             setScannedState("ready");
             return;
           }
@@ -567,12 +625,16 @@ export default function Holder() {
         setScannedCard(result.card);
         setLeadGenEnabledState(result.lead_gen_enabled);
         setIsRootCard(result.is_root);
+        setIsTrialCard(result.is_trial);
+        setTrialExpiresAt(result.trial_expires_at);
         setScannedState("ready");
         cacheCard(params.orderCode!, {
           card: result.card,
           status: result.status,
           lead_gen_enabled: result.lead_gen_enabled,
           is_root: result.is_root,
+          is_trial: result.is_trial,
+          trial_expires_at: result.trial_expires_at,
         });
       })
       .catch(() => {
@@ -585,6 +647,8 @@ export default function Holder() {
           setScannedCard(cached.card);
           setLeadGenEnabledState(cached.lead_gen_enabled);
           setIsRootCard(cached.is_root);
+          setIsTrialCard(cached.is_trial);
+          setTrialExpiresAt(cached.trial_expires_at);
           setScannedState("ready");
           return;
         }
@@ -608,6 +672,11 @@ export default function Holder() {
   const [justUnlocked, setJustUnlocked] = useState(false);
   const gateUnlocked = justUnlocked || (orderCode ? isUnlockedCard(orderCode) : false);
   const showLeadGate = isStandalone && leadGenEnabled && !isOwnerDevice && !gateUnlocked;
+  // Free Trial cards deactivate once trial_expires_at passes, unless the
+  // owner upgraded (which clears is_trial server-side; see
+  // upgrade_trial_order). Applies to the owner's own view too, not just
+  // visitors, so this is a real gate, not just hidden Business-only UI.
+  const trialExpired = isTrialCard && isTrialExpired(trialExpiresAt);
   // Order code of whichever card's Lead Settings panel is open, or null if
   // closed. Holds an order_code rather than a boolean so the same panel
   // serves both the owner's own card and any team member's card in the
@@ -815,6 +884,18 @@ export default function Holder() {
     );
   }
 
+  if (trialExpired && orderCode) {
+    return (
+      <TrialExpiredGate
+        isOwner={isOwnerDevice}
+        orderCode={orderCode}
+        card={myCard}
+        trialExpiresAt={trialExpiresAt}
+        navigate={navigate}
+      />
+    );
+  }
+
   if (showLeadGate && orderCode) {
     return (
       <LeadGate
@@ -906,6 +987,27 @@ export default function Holder() {
               </button>
             )}
           </div>
+          {isOwnerDevice && isTrialCard && !trialExpired && trialExpiresAt && (
+            <div className="mx-5 mt-3 border border-white/15 rounded-[10px] px-4 py-3">
+              <div className="text-white/60 text-[11px] leading-relaxed mb-2.5">
+                Free trial: {daysRemaining(trialExpiresAt)} day{daysRemaining(trialExpiresAt) === 1 ? "" : "s"} left. Upgrade to keep it after that.
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(["basic", "pro", "business"] as const).map((id) => (
+                  <button
+                    key={id}
+                    onClick={() =>
+                      orderCode &&
+                      navigate("/builder", { state: { plan: id, upgradeFrom: { orderCode, card: myCard } } })
+                    }
+                    className="border border-white/20 py-2 text-[10px] tracking-widest uppercase text-white hover:border-white transition-colors"
+                  >
+                    {resolvePlan(id).name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex-1 flex items-center justify-center px-1 py-6">
             <div style={{ transform: "translateY(30px)" }}>
               <RealDbcCard data={myCard} qrUrl={myCardQrUrl} />
