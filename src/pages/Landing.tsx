@@ -395,7 +395,7 @@ export default function Landing() {
                     const label = parenIndex === -1 ? f : f.slice(0, parenIndex).trimEnd();
                     const note = parenIndex === -1 ? null : f.slice(parenIndex);
                     return (
-                      <li key={f} className="flex items-center gap-3 text-[15px]">
+                      <li key={f} className="flex items-center gap-3 text-[13px]">
                         <img src={iconCheck} alt="" className="w-5 h-5 shrink-0" />
                         <span>
                           {label}
