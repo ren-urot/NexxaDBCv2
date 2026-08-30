@@ -36,7 +36,7 @@ export interface CardData {
   backgroundImageUrl: string;
 }
 
-export type BuilderStep = "template" | "details" | "customize" | "preview" | "payment" | "status";
+export type BuilderStep = "template" | "details" | "preview" | "payment" | "status";
 
 export type PaymentStatus =
   | "pending"

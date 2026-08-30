@@ -93,7 +93,6 @@ const BG_TEMPLATES: { id: string; src: string }[] = [
 const STEPS: { id: BuilderStep; label: string }[] = [
   { id: "template", label: "Template" },
   { id: "details", label: "Details" },
-  { id: "customize", label: "Customize" },
   { id: "preview", label: "Preview" },
   { id: "payment", label: "Payment" },
   { id: "status", label: "Status" },
@@ -565,93 +564,12 @@ export default function Builder() {
                   );
                 })}
               </div>
-              <div className="mt-10 flex justify-end">
-                <button
-                  onClick={goNext}
-                  className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
 
-          {step === "details" && (
-            <div className="max-w-xl mx-auto px-8 py-12">
-              <h2 className="text-2xl tracking-tight text-[var(--color-foreground)] mb-2">
-                Your information
-              </h2>
-              <p className="text-xs text-[var(--color-muted-fg)] mb-10">
-                Fill in your details. Required fields are marked with a dot.
-              </p>
-              <div className="space-y-8">
-                <div>
-                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Identity</div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field fieldKey="firstName" label="First Name" value={card.firstName} onChange={set("firstName")} required placeholder="Maria" touched={touched.has("firstName")} onBlur={() => touchField("firstName")} />
-                    <Field fieldKey="lastName" label="Last Name" value={card.lastName} onChange={set("lastName")} required placeholder="Santos" touched={touched.has("lastName")} onBlur={() => touchField("lastName")} />
-                  </div>
-                  <div className="mt-4 space-y-4">
-                    <Field fieldKey="title" label="Job Title" value={card.title} onChange={set("title")} required placeholder="CEO" touched={touched.has("title")} onBlur={() => touchField("title")} />
-                    <Field fieldKey="company" label="Company" value={card.company} onChange={set("company")} placeholder="XYZ Trading (optional)" touched={touched.has("company")} onBlur={() => touchField("company")} />
-                  </div>
-                </div>
-                <div className="h-px bg-[var(--color-border)]" />
-                <div>
-                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Contact</div>
-                  <div className="space-y-4">
-                    <Field fieldKey="mobile" label="Mobile Number" value={card.mobile} onChange={set("mobile")} required placeholder="+63 917 555 0100" type="tel" icon={Phone} touched={touched.has("mobile")} onBlur={() => touchField("mobile")} />
-                    <Field fieldKey="email" label="Email" value={card.email} onChange={set("email")} required placeholder="maria@xyz.com" type="email" icon={Mail} touched={touched.has("email")} onBlur={() => touchField("email")} />
-                    <Field fieldKey="website" label="Website" value={card.website} onChange={set("website")} placeholder="xyz.com" icon={Globe} touched={touched.has("website")} onBlur={() => touchField("website")} />
-                    <Field fieldKey="address" label="Business Address" value={card.address} onChange={set("address")} placeholder="1234 Ayala Ave, Makati City" icon={MapPin} touched={touched.has("address")} onBlur={() => touchField("address")} />
-                  </div>
-                </div>
-                <div className="h-px bg-[var(--color-border)]" />
-                <div>
-                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Social Links</div>
-                  <div className="space-y-4">
-                    <Field fieldKey="linkedin" label="LinkedIn" value={card.linkedin} onChange={set("linkedin")} placeholder="linkedin.com/in/mariasantos" icon={LinkedinIcon} touched={touched.has("linkedin")} onBlur={() => touchField("linkedin")} />
-                    <Field fieldKey="facebook" label="Facebook" value={card.facebook} onChange={set("facebook")} placeholder="facebook.com/mariasantos" icon={FacebookIcon} touched={touched.has("facebook")} onBlur={() => touchField("facebook")} />
-                    <Field fieldKey="instagram" label="Instagram" value={card.instagram} onChange={set("instagram")} placeholder="@mariasantos" icon={InstagramIcon} touched={touched.has("instagram")} onBlur={() => touchField("instagram")} />
-                    <Field fieldKey="whatsapp" label="WhatsApp" value={card.whatsapp} onChange={set("whatsapp")} placeholder="+63 917 555 0100" icon={MessageCircle} touched={touched.has("whatsapp")} onBlur={() => touchField("whatsapp")} />
-                  </div>
-                </div>
-              </div>
-              {isFreeAddOn && submitError && (
-                <div className="mt-6 text-[10px] text-red-600 bg-red-50 border border-red-200 px-4 py-3">
-                  {submitError}
-                </div>
-              )}
-              <div className="mt-10 flex justify-between">
-                <button onClick={goBack} className="text-xs tracking-widest uppercase text-[var(--color-muted-fg)] px-6 py-3 border border-[var(--color-border)] hover:border-[var(--color-foreground)] transition-colors">
-                  Back
-                </button>
-                <button
-                  disabled={isFreeAddOn && submitting}
-                  onClick={() => {
-                    if (!detailsValid) {
-                      touchAll(DETAIL_FIELDS.map((f) => f.key));
-                      return;
-                    }
-                    if (isFreeAddOn) {
-                      submitFreeAddOn();
-                      return;
-                    }
-                    goNext();
-                  }}
-                  className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors disabled:opacity-40"
-                >
-                  {isFreeAddOn && submitting ? "Adding…" : "Continue"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === "customize" && (
-            <div className="max-w-xl mx-auto px-8 py-12">
-              <h2 className="text-2xl tracking-tight text-[var(--color-foreground)] mb-2">
-                Customize
-              </h2>
+              {/* Customize lives on this same step now: showing template
+                  choice alone, before any color/logo/background, made the
+                  card look too plain to bother continuing. */}
+              <div className="h-px bg-[var(--color-border)] my-10" />
+              <h2 className="text-2xl tracking-tight text-[var(--color-foreground)] mb-2">Customize</h2>
               <p className="text-xs text-[var(--color-muted-fg)] mb-10">
                 Adjust colors and branding within your chosen template.
               </p>
@@ -688,30 +606,6 @@ export default function Builder() {
                     </label>
                   </div>
                 </div>
-
-                {plan.templates.length > 1 && (
-                  <>
-                    <div className="h-px bg-[var(--color-border)]" />
-                    <div>
-                      <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Template</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {TEMPLATES.filter((t) => plan.templates.includes(t.id)).map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => setCard((c) => ({ ...c, template: t.id }))}
-                            className={`text-[10px] tracking-widest uppercase py-2 px-3 border transition-colors ${
-                              card.template === t.id
-                                ? "border-[var(--color-accent)] text-[var(--color-accent)]"
-                                : "border-[var(--color-border)] text-[var(--color-muted-fg)] hover:border-[var(--color-foreground)]"
-                            }`}
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 <div className="h-px bg-[var(--color-border)]" />
                 <div className={!plan.logoUpload ? "opacity-40 pointer-events-none select-none" : ""}>
@@ -820,12 +714,84 @@ export default function Builder() {
                   </label>
                 </div>
               </div>
+
+              <div className="mt-10 flex justify-end">
+                <button
+                  onClick={goNext}
+                  className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === "details" && (
+            <div className="max-w-xl mx-auto px-8 py-12">
+              <h2 className="text-2xl tracking-tight text-[var(--color-foreground)] mb-2">
+                Your information
+              </h2>
+              <p className="text-xs text-[var(--color-muted-fg)] mb-10">
+                Fill in your details. Required fields are marked with a dot.
+              </p>
+              <div className="space-y-8">
+                <div>
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Identity</div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field fieldKey="firstName" label="First Name" value={card.firstName} onChange={set("firstName")} required placeholder="Maria" touched={touched.has("firstName")} onBlur={() => touchField("firstName")} />
+                    <Field fieldKey="lastName" label="Last Name" value={card.lastName} onChange={set("lastName")} required placeholder="Santos" touched={touched.has("lastName")} onBlur={() => touchField("lastName")} />
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    <Field fieldKey="title" label="Job Title" value={card.title} onChange={set("title")} required placeholder="CEO" touched={touched.has("title")} onBlur={() => touchField("title")} />
+                    <Field fieldKey="company" label="Company" value={card.company} onChange={set("company")} placeholder="XYZ Trading (optional)" touched={touched.has("company")} onBlur={() => touchField("company")} />
+                  </div>
+                </div>
+                <div className="h-px bg-[var(--color-border)]" />
+                <div>
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Contact</div>
+                  <div className="space-y-4">
+                    <Field fieldKey="mobile" label="Mobile Number" value={card.mobile} onChange={set("mobile")} required placeholder="+63 917 555 0100" type="tel" icon={Phone} touched={touched.has("mobile")} onBlur={() => touchField("mobile")} />
+                    <Field fieldKey="email" label="Email" value={card.email} onChange={set("email")} required placeholder="maria@xyz.com" type="email" icon={Mail} touched={touched.has("email")} onBlur={() => touchField("email")} />
+                    <Field fieldKey="website" label="Website" value={card.website} onChange={set("website")} placeholder="xyz.com" icon={Globe} touched={touched.has("website")} onBlur={() => touchField("website")} />
+                    <Field fieldKey="address" label="Business Address" value={card.address} onChange={set("address")} placeholder="1234 Ayala Ave, Makati City" icon={MapPin} touched={touched.has("address")} onBlur={() => touchField("address")} />
+                  </div>
+                </div>
+                <div className="h-px bg-[var(--color-border)]" />
+                <div>
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Social Links</div>
+                  <div className="space-y-4">
+                    <Field fieldKey="linkedin" label="LinkedIn" value={card.linkedin} onChange={set("linkedin")} placeholder="linkedin.com/in/mariasantos" icon={LinkedinIcon} touched={touched.has("linkedin")} onBlur={() => touchField("linkedin")} />
+                    <Field fieldKey="facebook" label="Facebook" value={card.facebook} onChange={set("facebook")} placeholder="facebook.com/mariasantos" icon={FacebookIcon} touched={touched.has("facebook")} onBlur={() => touchField("facebook")} />
+                    <Field fieldKey="instagram" label="Instagram" value={card.instagram} onChange={set("instagram")} placeholder="@mariasantos" icon={InstagramIcon} touched={touched.has("instagram")} onBlur={() => touchField("instagram")} />
+                    <Field fieldKey="whatsapp" label="WhatsApp" value={card.whatsapp} onChange={set("whatsapp")} placeholder="+63 917 555 0100" icon={MessageCircle} touched={touched.has("whatsapp")} onBlur={() => touchField("whatsapp")} />
+                  </div>
+                </div>
+              </div>
+              {isFreeAddOn && submitError && (
+                <div className="mt-6 text-[10px] text-red-600 bg-red-50 border border-red-200 px-4 py-3">
+                  {submitError}
+                </div>
+              )}
               <div className="mt-10 flex justify-between">
                 <button onClick={goBack} className="text-xs tracking-widest uppercase text-[var(--color-muted-fg)] px-6 py-3 border border-[var(--color-border)] hover:border-[var(--color-foreground)] transition-colors">
                   Back
                 </button>
-                <button onClick={goNext} className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors">
-                  Continue
+                <button
+                  disabled={isFreeAddOn && submitting}
+                  onClick={() => {
+                    if (!detailsValid) {
+                      touchAll(DETAIL_FIELDS.map((f) => f.key));
+                      return;
+                    }
+                    if (isFreeAddOn) {
+                      submitFreeAddOn();
+                      return;
+                    }
+                    goNext();
+                  }}
+                  className="bg-[var(--color-foreground)] text-[var(--color-background)] text-xs tracking-widest uppercase px-8 py-3 hover:bg-[var(--color-accent)] transition-colors disabled:opacity-40"
+                >
+                  {isFreeAddOn && submitting ? "Adding…" : "Continue"}
                 </button>
               </div>
             </div>
