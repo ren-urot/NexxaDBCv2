@@ -387,14 +387,23 @@ export async function sendChatMessage(fromOrderCode: string, toOrderCode: string
     p_body: body,
   });
   if (error) throw error;
-  // Fire-and-forget: the message is already durably saved above, so a
-  // failed/slow broadcast only delays the recipient's live update, never
-  // loses the message (their next getConversations/getChatMessages call
-  // picks it up regardless).
-  supabase.channel(chatChannelName(toOrderCode)).send({
-    type: "broadcast",
-    event: "new_message",
-    payload: { from: fromOrderCode, body },
+  // A channel has to actually be joined (subscribed) before .send() will
+  // transmit anything over the socket; calling .send() on a freshly
+  // created, never-subscribed channel silently sends nothing at all, no
+  // error, no frame on the wire. So: subscribe, send once joined, then
+  // tear the one-off channel back down. Not awaited by the caller: the
+  // message is already durably saved above, so a failed/slow broadcast
+  // only delays the recipient's live update, never loses the message
+  // (their next getConversations/getChatMessages call picks it up
+  // regardless).
+  const channel = supabase.channel(chatChannelName(toOrderCode));
+  channel.subscribe((status) => {
+    if (status === "SUBSCRIBED") {
+      channel.send({ type: "broadcast", event: "new_message", payload: { from: fromOrderCode, body } });
+      setTimeout(() => supabase?.removeChannel(channel), 1000);
+    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+      supabase?.removeChannel(channel);
+    }
   });
 }
 
