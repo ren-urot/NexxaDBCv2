@@ -816,8 +816,10 @@ as $$
     where o.order_code = p_with_order_code
   )
   select sender.order_code, m.body, m.created_at
-  from nexora_messages m, me, them
+  from nexora_messages m
   join nexora_orders sender on sender.id = m.from_order_id
+  cross join me
+  cross join them
   where (m.from_order_id = me.root_id and m.to_order_id = them.root_id)
      or (m.from_order_id = them.root_id and m.to_order_id = me.root_id)
   order by m.created_at asc;
