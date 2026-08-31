@@ -1513,9 +1513,18 @@ export default function Holder() {
           {leadChat && (
             <div className="mx-5 mt-3">
               <button
-                onClick={() =>
-                  navigate(`/holder/${leadChat.code}?tab=messages&from=${encodeURIComponent(leadChat.ownerCode)}`)
-                }
+                onClick={() => {
+                  // A lead never sees the Messages icon (the only other
+                  // place this gets requested) -- they land straight in
+                  // the thread via the link below instead, so without
+                  // asking here they'd never get a chance to grant
+                  // notification permission at all, and would only ever
+                  // get the fallback chime while the tab is open.
+                  if (notifPermission === "default") {
+                    Notification.requestPermission().then(setNotifPermission);
+                  }
+                  navigate(`/holder/${leadChat.code}?tab=messages&from=${encodeURIComponent(leadChat.ownerCode)}`);
+                }}
                 className="w-full flex items-center justify-center gap-2 border border-white/20 py-3 rounded-[10px] text-white text-xs tracking-wide hover:border-white/40 transition-colors"
               >
                 <MessageCircle size={14} />
