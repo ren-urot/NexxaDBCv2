@@ -30,6 +30,8 @@ import {
   getChatMessages,
   markChatRead,
   subscribeToChatMessages,
+  savePushSubscription,
+  sendPushNotification,
   type ConversationRow,
   type ChatMessageRow,
 } from "../lib/supabase";
@@ -111,10 +113,56 @@ function notifyMessage(title: string, body: string) {
     // `vibrate` is a real, widely-supported NotificationOptions field
     // (Chrome/Android) that TypeScript's DOM lib doesn't declare, hence
     // the cast; ignored harmlessly on platforms that don't support it.
-    const options = { body, vibrate: [70, 40, 70, 40, 70, 40, 180] } as NotificationOptions;
+    // Same tag as the push-triggered notification in src/sw.ts: if a
+    // Web Push for this same message also lands while the tab is open,
+    // the browser replaces this one in place instead of stacking a
+    // second banner/sound on top of it.
+    const options = {
+      body,
+      tag: "nexxadbc-message",
+      vibrate: [70, 40, 70, 40, 70, 40, 180],
+    } as NotificationOptions;
     new Notification(title, options);
   } catch {
     // No-op: playMessageChime is always called separately regardless.
+  }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(new ArrayBuffer(rawData.length));
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+// Subscribes this browser/device to Web Push and registers it against
+// orderCode, so incoming chat messages can reach it even with no
+// NexxaDBC tab open at all (real lock-screen notifications, via
+// src/sw.ts's push handler). Safe to call repeatedly: getSubscription()
+// returns the existing one if this device is already subscribed, and
+// save_push_subscription upserts by endpoint. Silently does nothing if
+// permission isn't granted, the browser lacks Push support, or the
+// public VAPID key isn't configured (VITE_VAPID_PUBLIC_KEY) -- the
+// foreground Notification/chime paths still work regardless.
+async function subscribeToPush(orderCode: string) {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+    if (!vapidKey) return;
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    }
+    await savePushSubscription(orderCode, subscription.toJSON());
+  } catch {
+    // Best-effort: foreground delivery still works without push.
   }
 }
 
@@ -948,6 +996,17 @@ export default function Holder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canChat, orderCode]);
 
+  // Registers (or re-registers) this device for Web Push as soon as
+  // permission is granted, so lock-screen delivery is active from the
+  // moment the owner says yes, not just from whenever they happen to
+  // reopen Messages next. Also re-runs if permission was already granted
+  // from a previous visit (initial notifPermission state), covering a
+  // lost/expired local subscription.
+  useEffect(() => {
+    if (!canChat || !orderCode || notifPermission !== "granted") return;
+    subscribeToPush(orderCode);
+  }, [canChat, orderCode, notifPermission]);
+
   // Real-time delivery while the Card Holder is open: plays the chime,
   // bumps the badge, and appends to the open thread live if that's the
   // conversation the message just arrived on. Falls back to whatever the
@@ -1012,6 +1071,12 @@ export default function Holder() {
     try {
       await sendChatMessage(orderCode, chatWith, body);
       setChatMessages((msgs) => [...msgs, { from_order_code: orderCode, body, created_at: new Date().toISOString() }]);
+      // Best-effort: delivers a real lock-screen push to the recipient's
+      // device(s) even if their app/browser is fully closed. The message
+      // itself is already saved by sendChatMessage above regardless of
+      // whether this succeeds, so a failure here is silently swallowed.
+      const myName = `${myCard.firstName} ${myCard.lastName}`.trim();
+      sendPushNotification(chatWith, myName || "New message", body).catch(() => {});
       setChatInput("");
       refreshConversations();
     } catch (err) {

@@ -10,6 +10,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // injectManifest (a custom src/sw.ts) instead of the default
+      // auto-generated worker: needed to add push/notificationclick
+      // listeners for real lock-screen chat notifications, which
+      // generateSW mode has no hook for.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'NexxaDBC',

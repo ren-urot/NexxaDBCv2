@@ -27,3 +27,6 @@ graphify-out
 supabase/diagnose.sql
 supabase/migration-plan-id.sql
 supabase/migration-chat.sql
+supabase/migration-push.sql
+supabase/.temp
+.vercel

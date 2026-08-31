@@ -462,3 +462,38 @@ export function subscribeToChatMessages(
     supabase!.removeChannel(channel);
   };
 }
+
+// Registers this device's Web Push subscription against an order_code, so
+// send-push (the Edge Function) has somewhere to deliver to even when this
+// tab/app isn't open at all. Upserts by endpoint server-side, so calling
+// this again with the same browser subscription is a safe no-op.
+export async function savePushSubscription(orderCode: string, subscription: PushSubscriptionJSON): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const keys = subscription.keys;
+  if (!subscription.endpoint || !keys?.p256dh || !keys?.auth) {
+    throw new Error("Incomplete push subscription");
+  }
+  const { error } = await supabase.rpc("save_push_subscription", {
+    p_order_code: orderCode,
+    p_endpoint: subscription.endpoint,
+    p_p256dh: keys.p256dh,
+    p_auth: keys.auth,
+  });
+  if (error) throw error;
+}
+
+// Asks the send-push Edge Function to deliver a real Web Push to every
+// device subscribed under toOrderCode. This is what makes a lock-screen
+// notification arrive even if the recipient's app/browser is fully
+// closed; the Realtime broadcast (subscribeToChatMessages above) only
+// reaches a tab that's still open. Best-effort by design: the message
+// itself is already persisted by send_chat_message regardless of whether
+// this call succeeds, so a failed push here just means a missed alert,
+// not a missed message.
+export async function sendPushNotification(toOrderCode: string, title: string, body: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("send-push", {
+    body: { to_order_code: toOrderCode, title, body },
+  });
+  if (error) throw error;
+}

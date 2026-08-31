@@ -850,3 +850,61 @@ end;
 $$;
 
 grant execute on function mark_chat_read(text, text) to anon, authenticated;
+
+-- Web Push subscriptions: one row per browser/device that has granted
+-- notification permission and subscribed. This is what lets a chat
+-- message notify a device even when NexxaDBC isn't open at all: the
+-- Realtime broadcast and the in-page Notification/chime (see Holder.tsx)
+-- both require the tab to still be alive in memory, so a fully closed
+-- app or a locked phone with the browser swapped out of memory has no
+-- other way to be reached. Keyed by root order id like everything else
+-- chat-related, since only the root card owner's own device(s) ever
+-- chat. The actual send happens from the send-push Edge Function using
+-- these rows (with the service role key, bypassing RLS same as every
+-- other table here), not from any client-callable function.
+create table if not exists nexora_push_subscriptions (
+  id bigint generated always as identity primary key,
+  order_id bigint not null references nexora_orders (id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table nexora_push_subscriptions enable row level security;
+
+create index if not exists nexora_push_subscriptions_order_id_idx on nexora_push_subscriptions (order_id);
+
+-- Upserts by endpoint: a device re-subscribing (permission re-granted,
+-- local subscription lost, browser storage cleared) updates the same
+-- row rather than accumulating duplicates, and gets re-pointed at
+-- whichever order_code it's subscribing under now.
+create or replace function save_push_subscription(
+  p_order_code text,
+  p_endpoint text,
+  p_p256dh text,
+  p_auth text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_root bigint;
+begin
+  select coalesce(o.parent_order_id, o.id) into v_root from nexora_orders o where o.order_code = p_order_code;
+  if v_root is null then
+    raise exception 'Unknown order code.';
+  end if;
+
+  insert into nexora_push_subscriptions (order_id, endpoint, p256dh, auth)
+  values (v_root, p_endpoint, p_p256dh, p_auth)
+  on conflict (endpoint) do update set
+    order_id = excluded.order_id,
+    p256dh = excluded.p256dh,
+    auth = excluded.auth;
+end;
+$$;
+
+grant execute on function save_push_subscription(text, text, text, text) to anon, authenticated;
