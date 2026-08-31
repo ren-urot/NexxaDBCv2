@@ -22,21 +22,40 @@ webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+// Called via supabase.functions.invoke() from a real browser tab (see
+// lib/supabase.ts sendPushNotification), a different origin than this
+// function's own supabase.co domain -- without these headers, the
+// browser's CORS preflight (an OPTIONS request every browser sends
+// automatically before the real POST) gets rejected before this
+// function's own logic ever runs, and the actual POST never even goes
+// out. curl and other non-browser clients skip this check entirely,
+// which is why a direct curl test can look completely fine while every
+// real call from the deployed app silently fails.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   let payload: { to_order_code?: string; title?: string; body?: string; url?: string };
   try {
     payload = await req.json();
   } catch {
-    return new Response("Invalid JSON body", { status: 400 });
+    return new Response("Invalid JSON body", { status: 400, headers: corsHeaders });
   }
 
   const { to_order_code, title, body, url } = payload;
   if (!to_order_code || !title || !body) {
-    return new Response("Missing to_order_code, title, or body", { status: 400 });
+    return new Response("Missing to_order_code, title, or body", { status: 400, headers: corsHeaders });
   }
 
   const { data: order } = await supabase
@@ -46,7 +65,7 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
 
   if (!order) {
-    return new Response("Unknown order_code", { status: 404 });
+    return new Response("Unknown order_code", { status: 404, headers: corsHeaders });
   }
   const rootId = order.parent_order_id ?? order.id;
 
@@ -56,7 +75,9 @@ Deno.serve(async (req: Request) => {
     .eq("order_id", rootId);
 
   if (!subs || subs.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ sent: 0 }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // Read by the service worker's push handler (src/sw.ts): title/body
@@ -84,5 +105,7 @@ Deno.serve(async (req: Request) => {
     })
   );
 
-  return new Response(JSON.stringify({ sent }), { headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify({ sent }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
