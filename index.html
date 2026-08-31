@@ -44,7 +44,36 @@
       // manifest link is appended by the build tooling after this script
       // runs, so a MutationObserver (not a direct query) catches it the
       // moment it lands, however that timing shakes out across builds.
+      //
+      // /admin needs the same early-swap treatment for a different reason:
+      // it's a genuinely separate installable app ("NexxaDBC Admin", its
+      // own icon/name) so admins can install it distinct from the
+      // customer-facing app and get lock-screen push without keeping a
+      // browser tab open. A React useEffect doing this swap after mount is
+      // too late -- Chrome evaluates installability against whatever
+      // manifest link is present shortly after the initial load, before
+      // React ever runs, so the swap has to happen here, synchronously off
+      // location.pathname, exactly like the /holder swap below.
       (function () {
+        if (location.pathname === "/admin") {
+          function swapAdmin(link) {
+            link.setAttribute("href", "/admin-manifest.json");
+          }
+          var existingAdmin = document.querySelector('link[rel="manifest"]');
+          if (existingAdmin) {
+            swapAdmin(existingAdmin);
+            return;
+          }
+          var adminObserver = new MutationObserver(function () {
+            var link = document.querySelector('link[rel="manifest"]');
+            if (link) {
+              swapAdmin(link);
+              adminObserver.disconnect();
+            }
+          });
+          adminObserver.observe(document.documentElement, { childList: true, subtree: true });
+          return;
+        }
         var match = location.pathname.match(/^\/holder\/[\w-]+$/);
         if (!match) return;
         // Fully-qualified absolute URLs, not root-relative paths: a

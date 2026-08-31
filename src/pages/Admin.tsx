@@ -27,23 +27,44 @@ import { urlBase64ToUint8Array } from "../lib/push";
 // realtime listener is live. Safe to call repeatedly: getSubscription()
 // returns the existing one if already subscribed, and
 // save_admin_push_subscription upserts by endpoint.
-async function subscribeAdminToPush() {
+//
+// Throws a labeled Error at whatever stage fails instead of swallowing it,
+// so the caller can surface *which* stage broke -- this device not
+// registering despite OS-level permission being granted had no visible
+// cause until this was added; a silent catch here was actively hiding it.
+async function subscribeAdminToPush(): Promise<void> {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+    throw new Error("stage=permission: Notification permission is not granted.");
+  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    throw new Error("stage=support: serviceWorker or PushManager unsupported on this browser.");
+  }
+  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+  if (!vapidKey) {
+    throw new Error("stage=vapid: VITE_VAPID_PUBLIC_KEY is missing from this build.");
+  }
+  let registration: ServiceWorkerRegistration;
   try {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-    if (!vapidKey) return;
-    const registration = await navigator.serviceWorker.ready;
-    let subscription = await registration.pushManager.getSubscription();
+    registration = await navigator.serviceWorker.ready;
+  } catch (err) {
+    throw new Error(`stage=sw-ready: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  let subscription: PushSubscription | null;
+  try {
+    subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
     }
+  } catch (err) {
+    throw new Error(`stage=subscribe: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  try {
     await saveAdminPushSubscription(subscription.toJSON());
-  } catch {
-    // Best-effort: the realtime in-app alert still works regardless.
+  } catch (err) {
+    throw new Error(`stage=save-rpc: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -310,7 +331,13 @@ function AdminDashboard() {
   // covers both a returning admin who already granted it in a previous
   // visit, and the moment requestNotifPermission below succeeds.
   useEffect(() => {
-    if (notifPermission === "granted") subscribeAdminToPush();
+    if (notifPermission !== "granted") return;
+    subscribeAdminToPush().catch((err) => {
+      // Surfaced in the UI (not just console) since this device is
+      // usually mobile, where DevTools isn't an option -- see the
+      // subscribeAdminToPush comment for why this used to be silent.
+      setActivityAlert(`Push registration failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
   }, [notifPermission]);
 
   useEffect(() => {
