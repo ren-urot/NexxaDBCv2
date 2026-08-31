@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download, Smartphone, MessageCircle, Send } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
@@ -39,38 +39,81 @@ import { cacheCard, getCachedCard } from "../lib/cardCache";
 import { usePageMeta } from "../lib/pageMeta";
 import { isTrialExpired, daysRemaining, resolvePlan } from "../data/plans";
 
-// A short two-tone chime for incoming chat messages, synthesized via the
-// Web Audio API rather than shipping an audio asset. Each call makes its
-// own short-lived AudioContext; browsers require a prior user gesture
-// before audio can play at all, but by the time a message arrives the
-// user has already interacted with the page (opened the app, tapped a
-// tab), so this reliably has permission.
+// NexxaDBC's own notification sound: a bright four-note ascending
+// arpeggio (C5-E5-G5-C6, cascading in then landing on a held top note),
+// synthesized via the Web Audio API rather than shipping an audio asset.
+// This is deliberately a distinct, ownable "brand" sound rather than a
+// generic double-beep: no browser lets a page attach a custom audio file
+// to a real OS Notification (see notifyMessage below), which always
+// plays the device's own default sound regardless of what a page
+// requests, so this chime played by us is the only way incoming
+// NexxaDBC messages get a recognizable sound of their own. Each call
+// makes its own short-lived AudioContext; browsers require a prior user
+// gesture before audio can play at all, but by the time a message
+// arrives the user has already interacted with the page (opened the
+// app, tapped a tab), so this reliably has permission.
 function playMessageChime() {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx();
     const now = ctx.currentTime;
-    [880, 1175].forEach((freq, i) => {
+    const master = ctx.createGain();
+    master.gain.value = 0.9;
+    master.connect(ctx.destination);
+    // [frequency, start offset, decay duration]. The notes cascade in
+    // with a slight overlap (each starts before the previous fully
+    // decays) then land on a longer, louder top note, giving it a
+    // "swoosh-and-land" shape instead of a flat repeated beep. Triangle
+    // wave carries more harmonics than sine, which reproduces more
+    // clearly (and loudly) on small phone speakers.
+    const notes: [number, number, number][] = [
+      [523.25, 0, 0.16],
+      [659.25, 0.09, 0.16],
+      [783.99, 0.18, 0.16],
+      [1046.5, 0.29, 0.36],
+    ];
+    notes.forEach(([freq, offset, decay], i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
+      osc.type = "triangle";
       osc.frequency.value = freq;
-      const start = now + i * 0.12;
+      const start = now + offset;
+      const peak = i === notes.length - 1 ? 0.9 : 0.65;
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.15, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + decay);
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(master);
       osc.start(start);
-      osc.stop(start + 0.2);
+      osc.stop(start + decay + 0.02);
     });
-    setTimeout(() => ctx.close(), 500);
+    setTimeout(() => ctx.close(), 900);
   } catch {
     // Audio can fail for all sorts of environment reasons (no gesture
     // yet, autoplay policy, no AudioContext support); the badge/unread
     // count still updates regardless, so a missed chime isn't worth
     // surfacing an error over.
+  }
+}
+
+// Shows a real OS-level notification (so the message surfaces even if
+// the Card Holder tab is backgrounded, and respects the phone's Do Not
+// Disturb) without letting it double up with playMessageChime above:
+// `silent: true` tells the OS not to play its own default sound, since
+// our own branded chime is already the intended sound. `vibrate` gives
+// the same "brand" treatment to the haptic (a short-short-short-long
+// pattern echoing the chime's rhythm) on the platforms that support it;
+// ignored harmlessly everywhere else.
+function notifyMessage(title: string, body: string) {
+  try {
+    // `vibrate` is a real, widely-supported NotificationOptions field
+    // (Chrome/Android) that TypeScript's DOM lib doesn't declare, hence
+    // the cast; ignored harmlessly on platforms that don't support it.
+    const options = { body, silent: true, vibrate: [70, 40, 70, 40, 70, 40, 180] } as NotificationOptions;
+    new Notification(title, options);
+  } catch {
+    // No-op: playMessageChime is always called separately regardless.
   }
 }
 
@@ -802,6 +845,15 @@ export default function Holder() {
   const [chatInput, setChatInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  // Real OS notification (respects the phone's actual notification sound,
+  // volume, and Do Not Disturb settings), same pattern already used for
+  // Admin's order alerts. Only requestable from a real user gesture
+  // (tapping the Messages icon), browsers won't show the permission
+  // prompt otherwise. Falls back to the synthesized chime below when this
+  // isn't granted or isn't supported, so there's always some audible cue.
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission
+  );
 
   // "Add New Cards": every card in this order's family (itself plus any
   // ₱199 add-on cards bought under the same Card Holder), fetched once we
@@ -857,6 +909,21 @@ export default function Holder() {
     Boolean(orderCode) && isOwnerDevice && isRootCard && (rootPlanId === "pro" || rootPlanId === "business");
   const totalUnread = conversations.reduce((sum, c) => sum + c.unread_count, 0);
 
+  // The broadcast subscription below is deliberately scoped to
+  // [canChat, orderCode] only, not resubscribing on every state change
+  // (that would tear down and rejoin the socket on every message, risking
+  // a missed one during the gap). These refs let its callback read the
+  // latest conversations/notifPermission without needing either in that
+  // dependency list.
+  const conversationsRef = useRef(conversations);
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+  const notifPermissionRef = useRef(notifPermission);
+  useEffect(() => {
+    notifPermissionRef.current = notifPermission;
+  }, [notifPermission]);
+
   const refreshConversations = () => {
     if (!orderCode) return;
     getConversations(orderCode)
@@ -881,7 +948,16 @@ export default function Holder() {
   useEffect(() => {
     if (!canChat || !orderCode) return;
     const unsubscribe = subscribeToChatMessages(orderCode, (payload) => {
+      // The branded chime always plays: it's the actual "NexxaDBC sound",
+      // and a real OS Notification can never carry a custom audio file
+      // (every platform just plays its own default sound instead), so
+      // this is the only path that produces it.
       playMessageChime();
+      if (notifPermissionRef.current === "granted") {
+        const senderCard = conversationsRef.current.find((c) => c.with_order_code === payload.from)?.with_card;
+        const senderName = senderCard ? `${senderCard.firstName} ${senderCard.lastName}`.trim() : "New message";
+        notifyMessage(senderName || "New message", payload.body);
+      }
       refreshConversations();
       setChatWith((current) => {
         if (current === payload.from) {
@@ -1242,6 +1318,14 @@ export default function Holder() {
                     onClick={() => {
                       setChatWith(null);
                       setTab("messages");
+                      // Only ever asked from this real tap, and only once:
+                      // requestPermission() must be called from a user
+                      // gesture, and re-asking after "default" (dismissed)
+                      // or "denied" would just be ignored by the browser
+                      // anyway, so this naturally asks at most one time.
+                      if (notifPermission === "default") {
+                        Notification.requestPermission().then(setNotifPermission);
+                      }
                     }}
                     className="relative text-white/50 hover:text-white transition-colors"
                     title="Messages"
