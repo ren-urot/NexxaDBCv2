@@ -166,6 +166,11 @@ async function subscribeToPush(orderCode: string) {
   }
 }
 
+// How many of the most recent messages a thread shows by default; older
+// ones collapse behind a "Show N earlier messages" button (see the
+// chatWith view below) instead of all rendering at once.
+const CHAT_VISIBLE_LIMIT = 30;
+
 const BASE_CARD: CardData = {
   template: "corporate",
   firstName: "",
@@ -891,6 +896,12 @@ export default function Holder() {
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [chatWith, setChatWith] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessageRow[]>([]);
+  // A long-running conversation renders every past message every time the
+  // thread opens otherwise; this keeps the initial view to just the most
+  // recent ones, with a button to reveal the rest on demand. Resets
+  // whenever a different thread is opened (see the effect below), so
+  // reopening an already-expanded thread starts collapsed again too.
+  const [showAllMessages, setShowAllMessages] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   // Scrolled to on every chatMessages change (thread opened, history
@@ -1047,6 +1058,7 @@ export default function Holder() {
   useEffect(() => {
     if (!chatWith || !orderCode) return;
     let cancelled = false;
+    setShowAllMessages(false);
     getChatMessages(orderCode, chatWith)
       .then((msgs) => {
         if (!cancelled) setChatMessages(msgs);
@@ -1648,7 +1660,15 @@ export default function Holder() {
             {chatMessages.length === 0 && (
               <p className="text-white/30 text-xs text-center mt-8">No messages yet. Say hello!</p>
             )}
-            {chatMessages.map((m, i) => {
+            {!showAllMessages && chatMessages.length > CHAT_VISIBLE_LIMIT && (
+              <button
+                onClick={() => setShowAllMessages(true)}
+                className="block mx-auto mb-2 text-white/40 hover:text-white/70 text-[11px] transition-colors"
+              >
+                Show {chatMessages.length - CHAT_VISIBLE_LIMIT} earlier messages
+              </button>
+            )}
+            {(showAllMessages ? chatMessages : chatMessages.slice(-CHAT_VISIBLE_LIMIT)).map((m, i) => {
               const mine = m.from_order_code === orderCode;
               return (
                 <div key={i} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
