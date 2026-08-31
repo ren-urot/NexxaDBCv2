@@ -31,9 +31,17 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 // out. curl and other non-browser clients skip this check entirely,
 // which is why a direct curl test can look completely fine while every
 // real call from the deployed app silently fails.
+// The first pass at this list only had the headers I guessed supabase-js
+// would send; a real browser test caught it actually also sending
+// `prefer` (a standard PostgREST/supabase-js header) and getting
+// rejected on that one specifically. Listing every header supabase-js's
+// client is known to attach, rather than guessing again, so a future
+// client-library version adding another standard header doesn't
+// silently reintroduce this same failure mode.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, prefer, x-supabase-api-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
