@@ -490,10 +490,18 @@ export async function savePushSubscription(orderCode: string, subscription: Push
 // itself is already persisted by send_chat_message regardless of whether
 // this call succeeds, so a failed push here just means a missed alert,
 // not a missed message.
-export async function sendPushNotification(toOrderCode: string, title: string, body: string, url?: string): Promise<void> {
+//
+// fromOrderCode is required: send-push re-verifies server-side (same as
+// send_chat_message) that a real connection exists between the two
+// orders before sending anything, and derives the notification's title
+// from the sender's own real card rather than trusting a client-supplied
+// name -- closes a real vulnerability found by security testing where
+// this endpoint accepted any recipient with a fully attacker-controlled
+// title/body since the anon key is public.
+export async function sendPushNotification(fromOrderCode: string, toOrderCode: string, body: string, url?: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.functions.invoke("send-push", {
-    body: { to_order_code: toOrderCode, title, body, url },
+    body: { from_order_code: fromOrderCode, to_order_code: toOrderCode, body, url },
   });
   if (error) throw error;
 }

@@ -9,6 +9,19 @@
 // succeeds (see lib/supabase.ts sendPushNotification) -- the message
 // itself is already persisted by that RPC regardless of whether this
 // call, or any individual push inside it, succeeds.
+//
+// SECURITY: security testing (2026-08-31) found this endpoint accepted
+// any to_order_code with a fully attacker-controlled title/body/url and
+// no check on who was calling -- since the anon key is public (shipped
+// in the client bundle), literally anyone could POST here directly and
+// push an arbitrary phishing notification to any real customer's phone,
+// appearing to come from NexxaDBC with OS-level trust. This now requires
+// from_order_code too and re-verifies, server-side, the exact same
+// requirements send_chat_message already enforces for the message
+// itself (both sides on a chat-capable plan, and a real connection
+// already exists between them) -- so this endpoint can only ever notify
+// about a conversation that's actually allowed to exist, never anything
+// else.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3";
 
@@ -22,24 +35,13 @@ webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-// Called via supabase.functions.invoke() from a real browser tab (see
-// lib/supabase.ts sendPushNotification), a different origin than this
-// function's own supabase.co domain -- without these headers, the
-// browser's CORS preflight (an OPTIONS request every browser sends
-// automatically before the real POST) gets rejected before this
-// function's own logic ever runs, and the actual POST never even goes
-// out. curl and other non-browser clients skip this check entirely,
-// which is why a direct curl test can look completely fine while every
-// real call from the deployed app silently fails.
-// The first pass at this list only had the headers I guessed supabase-js
-// would send; a real browser test caught it actually also sending
-// `prefer` (a standard PostgREST/supabase-js header) and getting
-// rejected on that one specifically. Listing every header supabase-js's
-// client is known to attach, rather than guessing again, so a future
-// client-library version adding another standard header doesn't
-// silently reintroduce this same failure mode.
+// Only the real app origin ever has a legitimate reason to call this;
+// the wildcard this used to be doesn't stop a direct script/curl call
+// (CORS is a browser-only protection) but does stop a malicious
+// third-party page from riding a victim's browser session into this
+// endpoint, and there's no reason to leave it open beyond that.
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://nexxadbc.com",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, prefer, x-supabase-api-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -54,33 +56,68 @@ Deno.serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
-  let payload: { to_order_code?: string; title?: string; body?: string; url?: string };
+  let payload: { from_order_code?: string; to_order_code?: string; title?: string; body?: string; url?: string };
   try {
     payload = await req.json();
   } catch {
     return new Response("Invalid JSON body", { status: 400, headers: corsHeaders });
   }
 
-  const { to_order_code, title, body, url } = payload;
-  if (!to_order_code || !title || !body) {
-    return new Response("Missing to_order_code, title, or body", { status: 400, headers: corsHeaders });
+  const { from_order_code, to_order_code, body, url } = payload;
+  if (!from_order_code || !to_order_code || !body) {
+    return new Response("Missing from_order_code, to_order_code, or body", { status: 400, headers: corsHeaders });
   }
 
-  const { data: order } = await supabase
+  const { data: fromOrder } = await supabase
+    .from("nexora_orders")
+    .select("id, parent_order_id, card")
+    .eq("order_code", from_order_code)
+    .maybeSingle();
+  const { data: toOrder } = await supabase
     .from("nexora_orders")
     .select("id, parent_order_id")
     .eq("order_code", to_order_code)
     .maybeSingle();
 
-  if (!order) {
+  if (!fromOrder || !toOrder) {
     return new Response("Unknown order_code", { status: 404, headers: corsHeaders });
   }
-  const rootId = order.parent_order_id ?? order.id;
+
+  const fromRootId = fromOrder.parent_order_id ?? fromOrder.id;
+  const toRootId = toOrder.parent_order_id ?? toOrder.id;
+
+  if (fromRootId === toRootId) {
+    return new Response("Cannot notify yourself", { status: 400, headers: corsHeaders });
+  }
+
+  const { data: fromRoot } = await supabase.from("nexora_orders").select("plan_id").eq("id", fromRootId).single();
+  const { data: toRoot } = await supabase.from("nexora_orders").select("plan_id").eq("id", toRootId).single();
+  if (!["pro", "business"].includes(fromRoot?.plan_id) || !["pro", "business"].includes(toRoot?.plan_id)) {
+    return new Response("Chat is available on the Pro and Business plans", { status: 403, headers: corsHeaders });
+  }
+
+  const [lo, hi] = fromRootId < toRootId ? [fromRootId, toRootId] : [toRootId, fromRootId];
+  const { data: connection } = await supabase
+    .from("nexora_connections")
+    .select("id")
+    .eq("order_id_a", lo)
+    .eq("order_id_b", hi)
+    .maybeSingle();
+  if (!connection) {
+    return new Response("No connection between these orders", { status: 403, headers: corsHeaders });
+  }
+
+  // Title is derived server-side from the sender's own real card, never
+  // taken from the request -- otherwise from_order_code proving a real
+  // connection still wouldn't stop someone impersonating a different
+  // display name in the notification.
+  const senderCard = fromOrder.card as { firstName?: string; lastName?: string } | null;
+  const title = `${senderCard?.firstName ?? ""} ${senderCard?.lastName ?? ""}`.trim() || "New message";
 
   const { data: subs } = await supabase
     .from("nexora_push_subscriptions")
     .select("id, endpoint, p256dh, auth")
-    .eq("order_id", rootId);
+    .eq("order_id", toRootId);
 
   if (!subs || subs.length === 0) {
     return new Response(JSON.stringify({ sent: 0 }), {

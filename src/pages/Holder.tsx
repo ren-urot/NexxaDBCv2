@@ -1160,7 +1160,6 @@ export default function Holder() {
       // device(s) even if their app/browser is fully closed. The message
       // itself is already saved by sendChatMessage above regardless of
       // whether this succeeds, so a failure here is silently swallowed.
-      const myName = `${myCard.firstName} ${myCard.lastName}`.trim();
       // Deep link straight into this thread: chatWith, from the sender's
       // side, IS the recipient's own order_code (that's who /holder/:code
       // needs to identify as), and `from` tells their page which
@@ -1168,7 +1167,10 @@ export default function Holder() {
       // Without this the notification's click target had no path/query at
       // all and every tap landed on Landing instead of the chat.
       const pushUrl = `${window.location.origin}/holder/${chatWith}?tab=messages&from=${encodeURIComponent(orderCode)}`;
-      sendPushNotification(chatWith, myName || "New message", body, pushUrl).catch(() => {});
+      // send-push derives the notification title from the sender's own
+      // real card server-side now, not from anything passed here -- see
+      // sendPushNotification's comment for why.
+      sendPushNotification(orderCode, chatWith, body, pushUrl).catch(() => {});
       setChatInput("");
       refreshConversations();
     } catch (err) {

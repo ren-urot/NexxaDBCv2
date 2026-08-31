@@ -29,5 +29,6 @@ supabase/migration-plan-id.sql
 supabase/migration-chat.sql
 supabase/migration-push.sql
 supabase/migration-cascade-delete.sql
+supabase/migration-admin-fix.sql
 supabase/.temp
 .vercel

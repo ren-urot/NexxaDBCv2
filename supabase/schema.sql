@@ -77,6 +77,29 @@ create unique index if not exists nexora_orders_payment_ref_unique
   on nexora_orders (payment_ref)
   where payment_ref <> '';
 
+-- Supabase's own public self-signup (Auth -> Settings) has been on since
+-- this project started, on the unstated assumption that "authenticated"
+-- effectively meant "the one admin". It never did: any freshly signed-up
+-- account is just as "authenticated" as the real admin, and every policy
+-- below that checked `to authenticated using (true)` treated the two as
+-- equivalent -- a public pentest confirmed this is exploitable as-is
+-- (2026-08-31): sign up for free, read/edit/delete every order (PII,
+-- payment refs) or approve your own order for free. is_admin() is the
+-- real check that was always missing; every "authenticated-only" policy
+-- and function below now goes through it instead of a bare role check.
+-- Disabling public signup in the dashboard closes new attackers out
+-- immediately, but doesn't fix the policies themselves, so this is still
+-- required regardless of that setting.
+create or replace function is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((auth.jwt() ->> 'email') = 'ren.ensombl@gmail.com', false);
+$$;
+
 alter table nexora_orders enable row level security;
 
 drop policy if exists "public_select_nexora_orders" on nexora_orders;
@@ -85,6 +108,9 @@ drop policy if exists "public_update_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_select_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_update_nexora_orders" on nexora_orders;
 drop policy if exists "authenticated_delete_nexora_orders" on nexora_orders;
+drop policy if exists "admin_select_nexora_orders" on nexora_orders;
+drop policy if exists "admin_update_nexora_orders" on nexora_orders;
+drop policy if exists "admin_delete_nexora_orders" on nexora_orders;
 
 -- Customers submitting a card order usually have no login, so anon must be
 -- able to insert. authenticated is included too: if the same browser is
@@ -92,14 +118,17 @@ drop policy if exists "authenticated_delete_nexora_orders" on nexora_orders;
 -- public Builder page) using that logged-in session instead of the anon
 -- key, and without this the insert would be rejected for admins testing
 -- the flow themselves. This is still the ONLY thing either role can do via
--- this policy: create new rows, nothing else.
+-- this policy: create new rows, nothing else -- and it's deliberately NOT
+-- gated by is_admin(), since real customers submitting real orders are
+-- never admins.
 create policy "public_insert_nexora_orders" on nexora_orders for insert to anon, authenticated with check (true);
 
--- Reading, updating, and deleting orders (the whole Admin dashboard)
--- requires a signed-in Supabase Auth user.
-create policy "authenticated_select_nexora_orders" on nexora_orders for select to authenticated using (true);
-create policy "authenticated_update_nexora_orders" on nexora_orders for update to authenticated using (true) with check (true);
-create policy "authenticated_delete_nexora_orders" on nexora_orders for delete to authenticated using (true);
+-- Reading, updating, and deleting orders (the whole Admin dashboard) is
+-- restricted to the real admin, not just "any signed-in user" (see
+-- is_admin() above for why that distinction is the whole fix here).
+create policy "admin_select_nexora_orders" on nexora_orders for select to authenticated using (is_admin());
+create policy "admin_update_nexora_orders" on nexora_orders for update to authenticated using (is_admin()) with check (is_admin());
+create policy "admin_delete_nexora_orders" on nexora_orders for delete to authenticated using (is_admin());
 
 -- Lets the Admin dashboard subscribe to live order inserts (for the new-order
 -- alert/notification) instead of polling. Safe to re-run.
@@ -594,17 +623,23 @@ $$;
 
 grant execute on function subscribe_email(text) to anon, authenticated;
 
--- Read access mirrors the Admin dashboard's own orders policy: signed-in
--- only. No UI reads this yet; query it directly in the SQL Editor, or
--- from Admin later if that's wired up, but the function exists now so
--- there's a real access path instead of only ever having the raw table.
+-- Read access mirrors the Admin dashboard's own orders policy: the real
+-- admin only (is_admin(), not just "signed in" -- being SECURITY DEFINER,
+-- this bypasses RLS entirely, so the GRANT below was the only thing
+-- standing between any freshly self-signed-up account and the full
+-- subscriber email list, and a grant alone doesn't check who's calling).
 create or replace function get_subscribers()
 returns table (email text, subscribed_at timestamptz)
-language sql
+language plpgsql
 security definer
 set search_path = public
 as $$
-  select s.email, s.subscribed_at from nexora_subscribers s order by s.subscribed_at desc;
+begin
+  if not is_admin() then
+    raise exception 'Admin access required.';
+  end if;
+  return query select s.email, s.subscribed_at from nexora_subscribers s order by s.subscribed_at desc;
+end;
 $$;
 
 -- Postgres grants EXECUTE on every newly created function to PUBLIC (which
