@@ -497,7 +497,15 @@ function AdminDashboard() {
               {notifOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-96 overflow-y-auto bg-[var(--color-background)] border border-[var(--color-border)] shadow-lg z-20">
+                  {/* fixed + viewport-relative insets on mobile, not
+                      absolute + width-capped: the bell isn't actually at
+                      the screen's right edge (Sign Out sits further
+                      right), so anchoring to ITS right-0 and just
+                      capping width still let the box's left edge run
+                      past the screen on narrow phones. Reverts to the
+                      original anchored-to-the-bell layout at sm+, where
+                      there's enough room for it to make sense. */}
+                  <div className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 max-h-96 overflow-y-auto bg-[var(--color-background)] border border-[var(--color-border)] shadow-lg z-20">
                     <div className="px-4 py-3 border-b border-[var(--color-border)] text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
                       Notifications
                     </div>
