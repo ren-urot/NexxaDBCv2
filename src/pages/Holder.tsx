@@ -102,13 +102,17 @@ function playMessageChime() {
 // Shows a real OS-level notification: no `silent` option, so the OS
 // plays its own default notification sound at the phone's actual
 // notification volume, respecting Do Not Disturb, instead of a
-// synthesized tone through the browser's media volume. The custom
-// chime above sounded fine in testing but was reported inaudible on a
-// real phone from across the room, so this is the actual sound now;
-// playMessageChime is kept only as a fallback for when permission isn't
-// granted (see the caller below). `vibrate` gives Android a matching
-// haptic pattern; ignored harmlessly on platforms that don't support it.
-function notifyMessage(title: string, body: string) {
+// synthesized tone through the browser's media volume.
+//
+// Deliberately goes through the service worker's registration.
+// showNotification() rather than `new Notification(...)`: on Android
+// Chrome, calling the page-level Notification constructor directly
+// throws "Illegal constructor" unconditionally (desktop browsers allow
+// it, which is why this looked fine in desktop testing) -- Android only
+// allows creating a notification via a ServiceWorkerRegistration. Using
+// the same call as the push handler in src/sw.ts also means the
+// foreground and lock-screen paths behave identically everywhere.
+async function notifyMessage(title: string, body: string) {
   try {
     // `vibrate` is a real, widely-supported NotificationOptions field
     // (Chrome/Android) that TypeScript's DOM lib doesn't declare, hence
@@ -120,11 +124,23 @@ function notifyMessage(title: string, body: string) {
     const options = {
       body,
       tag: "nexxadbc-message",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       vibrate: [70, 40, 70, 40, 70, 40, 180],
     } as NotificationOptions;
-    new Notification(title, options);
+    if ("serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(title, options);
+    } else {
+      // No service worker at all (very old browser): the plain
+      // constructor is the only option left, and does work on desktop.
+      new Notification(title, options);
+    }
   } catch {
-    // No-op: playMessageChime is always called separately regardless.
+    // Whatever went wrong (unsupported platform, no active worker,
+    // Android's Illegal constructor case if serviceWorker somehow isn't
+    // available), there's still an audible fallback.
+    playMessageChime();
   }
 }
 
