@@ -588,6 +588,59 @@ $$;
 
 grant execute on function get_leads(text) to anon, authenticated;
 
+-- Lets the owner remove a captured lead (test entries, spam, etc.) from
+-- their own Lead Generation panel. Same family-wide resolution as
+-- get_leads, so it works from any card's order_code. Also removes the
+-- lead's auto-provisioned chat account/connection if one exists (see
+-- submit_lead), matched by name against the same owner -- there's no
+-- direct FK between a nexora_leads row and the order it caused, so this
+-- is the best link available -- so a deleted lead doesn't linger as a
+-- phantom conversation in Messages. Cascades to that order's
+-- connections/messages/push subscriptions automatically (see their FKs).
+create or replace function delete_lead(p_order_code text, p_lead_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_root_id bigint;
+  v_lead_name text;
+  v_lead_order_id bigint;
+begin
+  select coalesce(o.parent_order_id, o.id) into v_root_id
+  from nexora_orders o where o.order_code = p_order_code;
+  if v_root_id is null then
+    raise exception 'Unknown order code: %', p_order_code;
+  end if;
+
+  select l.name into v_lead_name
+  from nexora_leads l
+  join nexora_orders o on o.id = l.order_id
+  where l.id = p_lead_id and (o.id = v_root_id or o.parent_order_id = v_root_id);
+
+  if v_lead_name is null then
+    raise exception 'Lead not found.';
+  end if;
+
+  delete from nexora_leads where id = p_lead_id;
+
+  select lo.id into v_lead_order_id
+  from nexora_orders lo
+  join nexora_connections c
+    on (c.order_id_a = v_root_id and c.order_id_b = lo.id)
+    or (c.order_id_b = v_root_id and c.order_id_a = lo.id)
+  where lo.plan_id = 'lead' and lo.customer = v_lead_name
+  limit 1;
+
+  if v_lead_order_id is not null then
+    delete from nexora_orders where id = v_lead_order_id;
+  end if;
+end;
+$$;
+
+grant execute on function delete_lead(text, bigint) to anon, authenticated;
+
 -- Business plan "QR Transfer": moving a Card Holder's device-local data
 -- (collected cards, plus which orders this device recognizes itself as
 -- the owner of; see deviceOwnership.ts) to a new phone. The owned family

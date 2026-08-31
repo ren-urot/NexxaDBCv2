@@ -66,3 +66,35 @@ export function markUnlockedCard(orderCode: string): void {
 export function isUnlockedCard(orderCode: string): boolean {
   return readSet(UNLOCKED_KEY).has(orderCode);
 }
+
+// Maps the card a lead unlocked (its order_code) to their own
+// auto-provisioned chat account (see submit_lead), so revisiting that
+// same card link later can send them straight back into their chat --
+// without this, the "Message [Owner]" prompt only ever existed for the
+// one render right after they submitted the form, with no way back if
+// they didn't tap it then and there.
+const LEAD_CHAT_KEY = "nexora_lead_chats_v1";
+
+function readLeadChatMap(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(LEAD_CHAT_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function markLeadChat(ownerOrderCode: string, leadOrderCode: string): void {
+  const map = readLeadChatMap();
+  map[ownerOrderCode] = leadOrderCode;
+  try {
+    localStorage.setItem(LEAD_CHAT_KEY, JSON.stringify(map));
+  } catch {
+    // Storage can be unavailable (private mode, quota); losing this is
+    // not worth surfacing an error over.
+  }
+}
+
+export function getLeadChat(ownerOrderCode: string): string | null {
+  return readLeadChatMap()[ownerOrderCode] ?? null;
+}

@@ -20,6 +20,7 @@ import {
   type BusinessCardEntry,
   submitLead,
   getLeads,
+  deleteLead,
   type LeadRow,
   setLeadGenEnabled,
   createTransfer,
@@ -35,7 +36,7 @@ import {
   type ConversationRow,
   type ChatMessageRow,
 } from "../lib/supabase";
-import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders } from "../lib/deviceOwnership";
+import { isOwnedOrder, isUnlockedCard, markUnlockedCard, markOwnedOrder, getOwnedOrders, markLeadChat, getLeadChat } from "../lib/deviceOwnership";
 import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/collectedCards";
 import { cacheCard, getCachedCard } from "../lib/cardCache";
 import { usePageMeta } from "../lib/pageMeta";
@@ -209,6 +210,9 @@ const CHAT_VISIBLE_LIMIT_FALLBACK = 20;
 // message length): the goal is "roughly one phone screen," not a
 // pixel-exact cutoff.
 const CHAT_ROW_HEIGHT_PX = 40;
+
+// How many captured leads the Lead Generation panel shows per page.
+const LEADS_PAGE_SIZE = 10;
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -583,6 +587,14 @@ function LeadSettingsPanel({
   const [toggling, setToggling] = useState(false);
   const [leads, setLeads] = useState<LeadRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [leadsPage, setLeadsPage] = useState(0);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const refreshLeads = () => {
+    getLeads(orderCode)
+      .then(setLeads)
+      .catch(() => setLoadError("Couldn't load leads. Please try again."));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -607,6 +619,19 @@ function LeadSettingsPanel({
       cancelled = true;
     };
   }, [orderCode]);
+
+  const handleDeleteLead = async (leadId: number) => {
+    if (!confirm("Remove this lead? This can't be undone.")) return;
+    setDeletingId(leadId);
+    try {
+      await deleteLead(orderCode, leadId);
+      refreshLeads();
+    } catch {
+      setLoadError("Couldn't remove that lead. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleToggle = async () => {
     if (enabled === null) return;
@@ -675,17 +700,55 @@ function LeadSettingsPanel({
         {leads?.length === 0 && (
           <div className="text-white/40 text-xs py-4 text-center">No leads captured yet.</div>
         )}
-        {leads && leads.length > 0 && (
-          <div className="divide-y divide-white/10 border border-white/10 rounded-[10px] overflow-hidden">
-            {leads.map((l) => (
-              <div key={l.id} className="px-4 py-3">
-                <div className="text-white text-xs font-medium">{l.name || "No name given"}</div>
-                <div className="text-white/50 text-[11px] mt-0.5">{l.contact}</div>
-                <div className="text-white/30 text-[10px] mt-0.5">{new Date(l.captured_at).toLocaleString()}</div>
+        {leads && leads.length > 0 && (() => {
+          const pageCount = Math.max(1, Math.ceil(leads.length / LEADS_PAGE_SIZE));
+          const page = Math.min(leadsPage, pageCount - 1);
+          const pageLeads = leads.slice(page * LEADS_PAGE_SIZE, page * LEADS_PAGE_SIZE + LEADS_PAGE_SIZE);
+          return (
+            <>
+              <div className="divide-y divide-white/10 border border-white/10 rounded-[10px] overflow-hidden">
+                {pageLeads.map((l) => (
+                  <div key={l.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-white text-xs font-medium">{l.name || "No name given"}</div>
+                      <div className="text-white/50 text-[11px] mt-0.5">{l.contact}</div>
+                      <div className="text-white/30 text-[10px] mt-0.5">{new Date(l.captured_at).toLocaleString()}</div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteLead(l.id)}
+                      disabled={deletingId === l.id}
+                      className="shrink-0 text-white/30 hover:text-red-400 transition-colors disabled:opacity-40"
+                      title="Remove lead"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+              {pageCount > 1 && (
+                <div className="flex items-center justify-between mt-3">
+                  <button
+                    onClick={() => setLeadsPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="text-[10px] tracking-widest uppercase text-white/50 hover:text-white transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    ← Prev
+                  </button>
+                  <div className="text-white/30 text-[10px]">
+                    Page {page + 1} of {pageCount}
+                  </div>
+                  <button
+                    onClick={() => setLeadsPage((p) => Math.min(pageCount - 1, p + 1))}
+                    disabled={page >= pageCount - 1}
+                    className="text-[10px] tracking-widest uppercase text-white/50 hover:text-white transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -886,6 +949,16 @@ export default function Holder() {
   // (see below) rather than navigating away immediately, so they still
   // get to see the card they came here for.
   const [leadChat, setLeadChat] = useState<{ code: string; ownerCode: string } | null>(null);
+  // Restores the "Message [Owner]" prompt on a later revisit to the same
+  // card link, not just the one render right after submitting the lead
+  // form: without this, a lead who closed the tab (or just didn't tap
+  // the button that first time) had no way back into their chat at all,
+  // since nothing else ever surfaces it to them again.
+  useEffect(() => {
+    if (!orderCode || isOwnerDevice) return;
+    const leadOrderCode = getLeadChat(orderCode);
+    if (leadOrderCode) setLeadChat({ code: leadOrderCode, ownerCode: orderCode });
+  }, [orderCode, isOwnerDevice]);
   // Free Trial cards deactivate once trial_expires_at passes, unless the
   // owner upgraded (which clears is_trial server-side; see
   // upgrade_trial_order). Applies to the owner's own view too, not just
@@ -1344,6 +1417,11 @@ export default function Holder() {
         orderCode={orderCode}
         onUnlock={(leadOrderCode) => {
           markOwnedOrder(leadOrderCode);
+          // Keyed by the same orderCode a revisit to this link looks
+          // itself up by (see the restore effect above), not the
+          // resolved root -- those can differ (a team member's own card
+          // link vs the family root), and the lookup has to match.
+          markLeadChat(orderCode, leadOrderCode);
           setLeadChat({ code: leadOrderCode, ownerCode: familyRoot?.order_code ?? orderCode });
           setJustUnlocked(true);
         }}

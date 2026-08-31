@@ -288,6 +288,12 @@ export async function getLeads(orderCode: string): Promise<LeadRow[]> {
   return (data ?? []) as LeadRow[];
 }
 
+export async function deleteLead(orderCode: string, leadId: number): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.rpc("delete_lead", { p_order_code: orderCode, p_lead_id: leadId });
+  if (error) throw error;
+}
+
 // Business plan "QR Transfer": moves a Card Holder's device-local data
 // (collected cards + which orders this device owns) to a new phone via a
 // short-lived, one-time token. See schema.sql for why no order_code or
