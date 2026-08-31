@@ -22,7 +22,7 @@ function isStandaloneDisplay(): boolean {
   return Boolean((window.navigator as { standalone?: boolean }).standalone);
 }
 
-function isIos(): boolean {
+export function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 

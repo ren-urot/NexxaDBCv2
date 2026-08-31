@@ -20,6 +20,7 @@ import {
   type OrderRow,
 } from "../lib/supabase";
 import { urlBase64ToUint8Array } from "../lib/push";
+import { isIos } from "../components/InstallPrompt";
 
 // Registers this device for Web Push (new-order alerts), so the admin
 // can find out about an order needing approval even with the Admin tab
@@ -32,6 +33,18 @@ import { urlBase64ToUint8Array } from "../lib/push";
 // so the caller can surface *which* stage broke -- this device not
 // registering despite OS-level permission being granted had no visible
 // cause until this was added; a silent catch here was actively hiding it.
+// Supabase's PostgREST client throws its PostgrestError shape directly
+// ({ message, code, details, hint }), not an Error instance, so a plain
+// `err instanceof Error ? err.message : String(err)` stringifies it as
+// "[object Object]" -- pull `.message` off anything that has one first.
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null && "message" in err && typeof (err as { message: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  return String(err);
+}
+
 async function subscribeAdminToPush(): Promise<void> {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") {
     throw new Error("stage=permission: Notification permission is not granted.");
@@ -47,7 +60,7 @@ async function subscribeAdminToPush(): Promise<void> {
   try {
     registration = await navigator.serviceWorker.ready;
   } catch (err) {
-    throw new Error(`stage=sw-ready: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`stage=sw-ready: ${errorMessage(err)}`);
   }
   let subscription: PushSubscription | null;
   try {
@@ -59,12 +72,12 @@ async function subscribeAdminToPush(): Promise<void> {
       });
     }
   } catch (err) {
-    throw new Error(`stage=subscribe: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`stage=subscribe: ${errorMessage(err)}`);
   }
   try {
     await saveAdminPushSubscription(subscription.toJSON());
   } catch (err) {
-    throw new Error(`stage=save-rpc: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`stage=save-rpc: ${errorMessage(err)}`);
   }
 }
 
@@ -327,6 +340,41 @@ function AdminDashboard() {
   // changed" notice for the action you just took yourself).
   const selfActionIds = useRef<Set<number>>(new Set());
 
+  // The full-screen InstallPrompt modal (Holder.tsx) is a customer-facing
+  // marketing surface -- wrong tone for a dashboard admins reopen daily,
+  // and it has no dismissal persistence, so it'd nag on every visit. Chrome
+  // also only shows its own native install banner if the site doesn't call
+  // preventDefault() on beforeinstallprompt, which index.html always does
+  // (so Holder can drive the modal above instead) -- meaning without an
+  // in-app affordance here, /admin had no visible way to install at all,
+  // even though it already passes Chrome's installability checks. This is
+  // a compact opt-in row inside the notification dropdown instead.
+  const [installStandalone, setInstallStandalone] = useState(false);
+  const [installEvent, setInstallEvent] = useState<{ prompt: () => Promise<void> } | null>(null);
+  const [installManualHelp, setInstallManualHelp] = useState(false);
+  useEffect(() => {
+    setInstallStandalone(window.matchMedia("(display-mode: standalone)").matches);
+    if (window.__deferredInstallPrompt) {
+      setInstallEvent(window.__deferredInstallPrompt);
+      return;
+    }
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallEvent(e as unknown as { prompt: () => Promise<void> });
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+  const handleInstallClick = () => {
+    if (installEvent) {
+      installEvent.prompt();
+      window.__deferredInstallPrompt = undefined;
+      setInstallEvent(null);
+      return;
+    }
+    setInstallManualHelp(true);
+  };
+
   // Registers for push the moment permission is (or becomes) granted --
   // covers both a returning admin who already granted it in a previous
   // visit, and the moment requestNotifPermission below succeeds.
@@ -543,6 +591,22 @@ function AdminDashboard() {
                       >
                         Enable browser notifications
                       </button>
+                    )}
+                    {!installStandalone && (
+                      installManualHelp ? (
+                        <div className="px-4 py-3 border-b border-[var(--color-border)] text-[11px] text-[var(--color-muted-fg)] leading-relaxed">
+                          {isIos()
+                            ? 'Tap the Share icon, then "Add to Home Screen".'
+                            : 'Tap the ⋮ menu (top right), then "Install app".'}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleInstallClick}
+                          className="w-full text-left px-4 py-3 border-b border-[var(--color-border)] text-xs text-[var(--color-accent)] hover:bg-[var(--color-muted)] transition-colors"
+                        >
+                          Install this app on your device
+                        </button>
+                      )
                     )}
                     {notifications.length === 0 ? (
                       <div className="px-4 py-8 text-[10px] text-[var(--color-muted-fg)] text-center">
