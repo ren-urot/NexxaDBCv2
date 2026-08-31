@@ -18,6 +18,8 @@ import {
   getPublicCard,
   getBusinessCards,
   type BusinessCardEntry,
+  getOwnedCards,
+  type OwnedCardEntry,
   submitLead,
   getLeads,
   deleteLead,
@@ -1116,9 +1118,40 @@ export default function Holder() {
     };
   }, [orderCode]);
 
+  // Every card this device owns, across every SEPARATE purchase (not
+  // just the one family family/getBusinessCards above resolves for
+  // whatever order the current URL happens to be) -- e.g. a device that
+  // bought a second, independent card because there's no way to edit an
+  // existing one previously only ever saw that new card at its own
+  // separate link. Refetched whenever a new order is created (orderCode
+  // changes, or getOwnedOrders grows), same trigger as the family fetch.
+  const [ownedCards, setOwnedCards] = useState<OwnedCardEntry[]>([]);
+  useEffect(() => {
+    const codes = getOwnedOrders();
+    if (codes.length === 0) {
+      setOwnedCards([]);
+      return;
+    }
+    let cancelled = false;
+    getOwnedCards(codes)
+      .then((entries) => {
+        if (!cancelled) setOwnedCards(entries);
+      })
+      .catch(() => {
+        // Non-critical: the single-family/single-card fallbacks below still work.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderCode]);
+
   const ACTIVE_STATUSES: PaymentStatus[] = ["approved", "provisioned"];
   const ownCards: SavedCard[] =
-    family.length > 0
+    ownedCards.length > 0
+      ? ownedCards
+          .filter((f) => ACTIVE_STATUSES.includes(f.status))
+          .map((f) => ({ ...f.card, id: f.order_code, savedAt: new Date().toISOString() }))
+      : family.length > 0
       ? family
           .filter((f) => ACTIVE_STATUSES.includes(f.status))
           .map((f) => ({ ...f.card, id: f.order_code, savedAt: new Date().toISOString() }))

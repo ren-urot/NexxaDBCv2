@@ -410,6 +410,45 @@ $$;
 
 grant execute on function get_business_cards(text) to anon, authenticated;
 
+-- Powers the Card Holder showing EVERY card a device owns together, not
+-- just whichever one order's family happens to match the current URL.
+-- A device that bought a second, separate card (e.g. after outdated
+-- info made them buy again, since there's no edit feature) previously
+-- only ever saw that new card at its own separate link -- the old one
+-- and the new one never appeared in the same Holder view. Takes the
+-- device's full locally-remembered order_code list (see
+-- deviceOwnership.ts getOwnedOrders) and returns cards across every
+-- DISTINCT family among them in one query, deduplicated by root so
+-- passing every family member's own order_code (not just the root's)
+-- is always safe. Excludes plan_id = 'lead' entirely: an
+-- auto-provisioned lead chat account (see submit_lead) has no real card
+-- and has no business being in this list.
+create or replace function get_owned_cards(p_order_codes text[])
+returns table (
+  order_code text, card jsonb, status text, is_root boolean,
+  is_trial boolean, trial_expires_at timestamptz, plan_id text,
+  root_order_code text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with owned_roots as (
+    select distinct coalesce(o.parent_order_id, o.id) as root_id
+    from nexora_orders o
+    where o.order_code = any(p_order_codes)
+  )
+  select o.order_code, o.card, o.status, (o.parent_order_id is null) as is_root,
+    o.is_trial, o.trial_expires_at, root.plan_id, root.order_code as root_order_code
+  from owned_roots orr
+  join nexora_orders root on root.id = orr.root_id
+  join nexora_orders o on o.id = orr.root_id or o.parent_order_id = orr.root_id
+  where root.plan_id <> 'lead'
+  order by root.id asc, o.id asc;
+$$;
+
+grant execute on function get_owned_cards(text[]) to anon, authenticated;
+
 -- Serves the public "scan to view this card" page (/c/:orderCode). Card
 -- fields are meant to be shared once a card exists (that's the point of a
 -- business card), so this doesn't gate on payment status; the public page

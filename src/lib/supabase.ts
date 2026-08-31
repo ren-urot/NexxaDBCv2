@@ -246,6 +246,25 @@ export async function getBusinessCards(orderCode: string): Promise<BusinessCardE
   return (data ?? []) as BusinessCardEntry[];
 }
 
+export interface OwnedCardEntry extends BusinessCardEntry {
+  root_order_code: string;
+}
+
+// Powers the Card Holder showing every card this device owns together,
+// not just whichever one order's family matches the current URL --
+// e.g. a device that bought a second, separate card (no edit feature
+// exists, so buying again is the only way to change info) previously
+// only ever saw the new one at its own separate link. orderCodes is
+// this device's full locally-remembered list (see deviceOwnership.ts
+// getOwnedOrders); passing every family member's own code, not just
+// each family's root, is safe -- the server dedupes by root.
+export async function getOwnedCards(orderCodes: string[]): Promise<OwnedCardEntry[]> {
+  if (!supabase || orderCodes.length === 0) return [];
+  const { data, error } = await supabase.rpc("get_owned_cards", { p_order_codes: orderCodes });
+  if (error) throw error;
+  return (data ?? []) as OwnedCardEntry[];
+}
+
 // Toggles Business plan "Lead Generation" for an order. Same order-code-
 // as-credential trust model as every other owner-only action in this app:
 // there's no login for card owners, so knowing the order_code already
