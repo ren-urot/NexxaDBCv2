@@ -126,7 +126,8 @@ const PLANS = [
       "Everything in Pro",
       "5 Free Team Members",
       "Multiple DBC Management",
-      "Lead Generation (Downloadable CSV)",
+      "In-App Chat",
+      "Lead Generation",
       "QR Transfer",
     ],
     details: [
@@ -143,7 +144,11 @@ const PLANS = [
         body: "Manage multiple digital business cards in one place, making it easier to organize, update, and maintain cards for your team or business.",
       },
       {
-        title: "Lead Generation (Downloadable CSV)",
+        title: "In-App Chat",
+        body: "Message anyone in your network directly inside NexxaDBC: exchange cards once, then chat any time to follow up, right from your Card Holder. Real-time delivery with sound alerts and an unread badge.",
+      },
+      {
+        title: "Lead Generation",
         body: "Capture contact information from people who interact with your digital business cards and download your leads as a CSV file for easy follow-up and management.",
       },
       {
