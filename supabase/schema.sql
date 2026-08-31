@@ -512,6 +512,8 @@ declare
   v_is_email boolean;
   v_lead_id bigint;
   v_lead_order_code text;
+  v_first_name text;
+  v_last_name text;
 begin
   select id, coalesce(parent_order_id, id) into v_order_id, v_root_id
   from nexora_orders where order_code = p_order_code;
@@ -531,13 +533,22 @@ begin
 
   insert into nexora_leads (order_id, contact, name) values (v_order_id, v_contact, v_name);
 
+  -- card carries a real firstName/lastName (split from the single name
+  -- field the lead form collects) rather than an empty object: every
+  -- chat UI (get_conversations, the Messages inbox, the thread header)
+  -- displays the other party's name via card.firstName/lastName, so an
+  -- empty card would literally render as the string "undefined
+  -- undefined" instead of the lead's actual name.
+  v_first_name := split_part(v_name, ' ', 1);
+  v_last_name := trim(substring(v_name from length(v_first_name) + 1));
+
   insert into nexora_orders (
     customer, email, template, amount, amount_usd, exchange_rate,
     method, payment_ref, notes, status, card, plan_id
   )
   values (
     v_name, case when v_is_email then v_contact else '' end, 'corporate', 0, 0, 0,
-    'none', '', '', 'approved', '{}'::jsonb, 'lead'
+    'none', '', '', 'approved', jsonb_build_object('firstName', v_first_name, 'lastName', v_last_name), 'lead'
   )
   returning id, order_code into v_lead_id, v_lead_order_code;
 
