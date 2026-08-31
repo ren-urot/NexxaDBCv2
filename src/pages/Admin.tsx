@@ -19,6 +19,50 @@ import {
   type OrderRow,
 } from "../lib/supabase";
 
+// Same branded chime as the chat notifications in Holder.tsx (a bright
+// four-note ascending arpeggio), used here as the fallback when a real
+// OS notification can't be shown -- e.g. Notification permission was
+// never granted, or the platform-specific throw notify() below already
+// guards against. No audio asset file; synthesized via the Web Audio
+// API each time it's called.
+function playAdminChime() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0.9;
+    master.connect(ctx.destination);
+    const notes: [number, number, number][] = [
+      [523.25, 0, 0.16],
+      [659.25, 0.09, 0.16],
+      [783.99, 0.18, 0.16],
+      [1046.5, 0.29, 0.36],
+    ];
+    notes.forEach(([freq, offset, decay], i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      const start = now + offset;
+      const peak = i === notes.length - 1 ? 0.9 : 0.65;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + decay);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(start);
+      osc.stop(start + decay + 0.02);
+    });
+    setTimeout(() => ctx.close(), 900);
+  } catch {
+    // Audio can fail for all sorts of environment reasons; the visible
+    // activity feed entry still shows regardless, so a missed chime
+    // isn't worth surfacing an error over.
+  }
+}
+
 const STATUS_LABELS: Record<PaymentStatus, string> = {
   pending: "Pending Payment",
   submitted: "Payment Submitted",
@@ -250,9 +294,26 @@ function AdminDashboard() {
     if (!supabaseConfigured) return;
 
     const notify = (title: string, body: string) => {
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        new Notification(title, { body });
-      }
+      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+      // Same real bug found in Holder.tsx's chat notifications: calling
+      // the page-level Notification constructor directly throws
+      // "Illegal constructor" unconditionally on Android Chrome (desktop
+      // browsers allow it, which is why this looked fine there) --
+      // Android only allows creating a notification via a
+      // ServiceWorkerRegistration. Falls back to a chime so there's
+      // still an audible cue on whatever unexpectedly fails.
+      (async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification(title, { body });
+          } else {
+            new Notification(title, { body });
+          }
+        } catch {
+          playAdminChime();
+        }
+      })();
     };
 
     const pushActivity = (message: string) => {
@@ -355,13 +416,13 @@ function AdminDashboard() {
   return (
     <div className="min-h-screen flex flex-col" style={{ fontFamily: "var(--font-sans)" }}>
       {/* Header */}
-      <header className="border-b border-[var(--color-border)] px-8 py-4 flex items-center justify-between">
-        <button onClick={() => navigate("/")} className="hover:opacity-70 transition-opacity">
+      <header className="border-b border-[var(--color-border)] px-4 sm:px-8 py-4 flex items-center justify-between gap-3">
+        <button onClick={() => navigate("/")} className="shrink-0 hover:opacity-70 transition-opacity">
           <Logo height={18} />
         </button>
-        <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">Admin Dashboard</div>
+        <div className="hidden sm:block text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">Admin Dashboard</div>
         {supabaseConfigured ? (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
             <div className="relative">
               <button
                 onClick={() => {
@@ -385,7 +446,7 @@ function AdminDashboard() {
               {notifOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-[var(--color-background)] border border-[var(--color-border)] shadow-lg z-20">
+                  <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-96 overflow-y-auto bg-[var(--color-background)] border border-[var(--color-border)] shadow-lg z-20">
                     <div className="px-4 py-3 border-b border-[var(--color-border)] text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)]">
                       Notifications
                     </div>
@@ -506,12 +567,12 @@ function AdminDashboard() {
                   <div className="text-[10px] tracking-widest uppercase text-[var(--color-muted-fg)] mb-4">Recent Orders</div>
                   <div className="border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
                     {orders.slice(0, 4).map((o) => (
-                      <div key={o.rowId} className="flex items-center justify-between px-5 py-4 hover:bg-[var(--color-muted)] transition-colors">
-                        <div>
-                          <div className="text-xs font-semibold text-[var(--color-foreground)]">{o.customer}</div>
-                          <div className="text-[10px] text-[var(--color-muted-fg)]">{o.id} · {o.template} · {o.submittedAt}</div>
+                      <div key={o.rowId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-5 py-4 hover:bg-[var(--color-muted)] transition-colors">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-[var(--color-foreground)] truncate">{o.customer}</div>
+                          <div className="text-[10px] text-[var(--color-muted-fg)] truncate">{o.id} · {o.template} · {o.submittedAt}</div>
                         </div>
-                        <div className={`text-[10px] tracking-widest uppercase border px-2 py-1 ${STATUS_COLORS[o.status]}`}>
+                        <div className={`text-[10px] tracking-widest uppercase border px-2 py-1 w-fit ${STATUS_COLORS[o.status]}`}>
                           {STATUS_LABELS[o.status]}
                         </div>
                       </div>
@@ -598,12 +659,12 @@ function AdminDashboard() {
                             onClick={() => setSelected(o)}
                             className={`w-full px-5 py-4 text-left transition-colors ${selected?.rowId === o.rowId ? "bg-[var(--color-muted)]" : "hover:bg-[var(--color-muted)]"}`}
                           >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-xs font-semibold text-[var(--color-foreground)]">{o.customer}</div>
-                                <div className="text-[10px] text-[var(--color-muted-fg)] mt-0.5">{o.id} · {o.method.toUpperCase()} · {o.submittedAt}</div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-[var(--color-foreground)] truncate">{o.customer}</div>
+                                <div className="text-[10px] text-[var(--color-muted-fg)] mt-0.5 truncate">{o.id} · {o.method.toUpperCase()} · {o.submittedAt}</div>
                               </div>
-                              <div className={`text-[10px] border px-2 py-1 ${STATUS_COLORS[o.status]}`}>
+                              <div className={`text-[10px] border px-2 py-1 w-fit ${STATUS_COLORS[o.status]}`}>
                                 {STATUS_LABELS[o.status]}
                               </div>
                             </div>
@@ -692,12 +753,12 @@ function AdminDashboard() {
                     {orders
                       .filter((o) => o.status === "approved" || o.status === "provisioned")
                       .map((o) => (
-                        <div key={o.rowId} className="flex items-center justify-between px-5 py-5">
-                          <div>
-                            <div className="text-xs font-semibold text-[var(--color-foreground)]">{o.customer}</div>
-                            <div className="text-[10px] text-[var(--color-muted-fg)] mt-0.5">{o.id} · {o.email}</div>
+                        <div key={o.rowId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-5">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-[var(--color-foreground)] truncate">{o.customer}</div>
+                            <div className="text-[10px] text-[var(--color-muted-fg)] mt-0.5 truncate">{o.id} · {o.email}</div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 shrink-0">
                             <div className={`text-[10px] border px-2 py-1 ${STATUS_COLORS[o.status]}`}>
                               {STATUS_LABELS[o.status]}
                             </div>
