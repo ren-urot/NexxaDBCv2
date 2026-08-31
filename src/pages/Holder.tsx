@@ -460,6 +460,11 @@ function LeadGate({
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Enter your name.");
+      return;
+    }
     const trimmed = contact.trim();
     if (!trimmed) {
       setError("Enter your email or phone number.");
@@ -480,7 +485,7 @@ function LeadGate({
     setSubmitting(true);
     setError(null);
     try {
-      await submitLead(orderCode, trimmed, name.trim());
+      await submitLead(orderCode, trimmed, trimmedName);
       markUnlockedCard(orderCode);
       onUnlock();
     } catch (err) {
@@ -513,7 +518,7 @@ function LeadGate({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your name (optional)"
+            placeholder="Your name"
             className="w-full bg-white/5 border border-white/15 text-white text-sm px-4 py-3 rounded-[8px] focus:outline-none focus:border-white/40 placeholder:text-white/30"
           />
           <input
@@ -945,6 +950,12 @@ export default function Holder() {
   // the inbox; chatMessages is only populated for whichever thread is
   // currently open.
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
+  // Filters the inbox by the other party's name. getConversations already
+  // resolves connections symmetrically (see nexora_connections' order_id_a/
+  // order_id_b), so this works identically for either side of a
+  // connection -- whoever scanned, and whoever got scanned, both see and
+  // can search their own full conversation list the same way.
+  const [chatSearch, setChatSearch] = useState("");
   const [chatWith, setChatWith] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessageRow[]>([]);
   // A long-running conversation renders every past message every time the
@@ -1700,10 +1711,31 @@ export default function Holder() {
               </p>
             </div>
           ) : (
-            <div className="flex-1 divide-y divide-white/10 overflow-y-auto">
-              {conversations.map((c) => {
-                const name = `${c.with_card.firstName} ${c.with_card.lastName}`.trim() || c.with_order_code;
+            <div className="flex-1 flex flex-col overflow-y-auto">
+              <div className="px-5 pb-2">
+                <input
+                  type="text"
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  placeholder="Search by name"
+                  className="w-full bg-white/5 border border-white/15 text-white text-xs px-4 py-2.5 rounded-full focus:outline-none focus:border-white/40 placeholder:text-white/30"
+                />
+              </div>
+              {(() => {
+                const q = chatSearch.trim().toLowerCase();
+                const filteredConversations = q
+                  ? conversations.filter((c) =>
+                      `${c.with_card.firstName} ${c.with_card.lastName}`.toLowerCase().includes(q)
+                    )
+                  : conversations;
+                if (filteredConversations.length === 0) {
+                  return <p className="text-white/30 text-xs text-center mt-8">No conversations match "{chatSearch}".</p>;
+                }
                 return (
+                  <div className="divide-y divide-white/10">
+                    {filteredConversations.map((c) => {
+                      const name = `${c.with_card.firstName} ${c.with_card.lastName}`.trim() || c.with_order_code;
+                      return (
                   <button
                     key={c.with_order_code}
                     onClick={() => setChatWith(c.with_order_code)}
@@ -1728,6 +1760,9 @@ export default function Holder() {
                   </button>
                 );
               })}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
