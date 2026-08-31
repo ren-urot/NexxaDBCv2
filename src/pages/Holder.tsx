@@ -465,6 +465,18 @@ function LeadGate({
       setError("Enter your email or phone number.");
       return;
     }
+    // The field accepts either an email or a phone number, so it's valid
+    // if it plausibly looks like ONE of the two -- not both. A phone
+    // number is checked by digit count after stripping formatting
+    // characters (+, spaces, dashes, parens) rather than a strict format,
+    // since real numbers vary a lot by country.
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    const digitsOnly = trimmed.replace(/[\s()+-]/g, "");
+    const isPhone = /^\d{7,15}$/.test(digitsOnly);
+    if (!isEmail && !isPhone) {
+      setError("Enter a valid email address or phone number.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {

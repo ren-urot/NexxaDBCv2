@@ -473,6 +473,9 @@ create table if not exists nexora_leads (
 -- info is exactly the kind of data that must never be broadly readable.
 alter table nexora_leads enable row level security;
 
+-- Same email-or-phone check as the client (LeadGate in Holder.tsx), kept
+-- server-side too since this RPC is callable directly (anon key is
+-- public); the client check alone is only a UX nicety, not enforcement.
 create or replace function submit_lead(p_order_code text, p_contact text, p_name text default '')
 returns void
 language plpgsql
@@ -481,13 +484,20 @@ set search_path = public
 as $$
 declare
   v_order_id bigint;
+  v_contact text := trim(p_contact);
+  v_digits text;
 begin
   select id into v_order_id from nexora_orders where order_code = p_order_code;
   if v_order_id is null then
     raise exception 'Unknown order code: %', p_order_code;
   end if;
 
-  insert into nexora_leads (order_id, contact, name) values (v_order_id, p_contact, p_name);
+  v_digits := regexp_replace(v_contact, '[\s()+-]', '', 'g');
+  if v_contact !~ '^[^\s@]+@[^\s@]+\.[^\s@]+$' and v_digits !~ '^\d{7,15}$' then
+    raise exception 'Enter a valid email address or phone number.';
+  end if;
+
+  insert into nexora_leads (order_id, contact, name) values (v_order_id, v_contact, p_name);
 end;
 $$;
 

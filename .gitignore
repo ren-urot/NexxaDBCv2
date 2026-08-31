@@ -30,5 +30,6 @@ supabase/migration-chat.sql
 supabase/migration-push.sql
 supabase/migration-cascade-delete.sql
 supabase/migration-admin-fix.sql
+supabase/migration-lead-validation.sql
 supabase/.temp
 .vercel
