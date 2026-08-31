@@ -624,10 +624,14 @@ grant execute on function get_subscribers() to authenticated;
 -- order_id_a is always the smaller id (enforced below) so a connection
 -- between two roots has exactly one canonical row no matter which side
 -- scanned first.
+-- on delete cascade on every FK here: Admin's Delete Order otherwise
+-- fails outright (a Postgres foreign key violation, not a soft/silent
+-- failure) for any order that ever exchanged a connection or message,
+-- which in practice is any order used to test chat at all.
 create table if not exists nexora_connections (
   id bigint generated always as identity primary key,
-  order_id_a bigint not null references nexora_orders(id),
-  order_id_b bigint not null references nexora_orders(id),
+  order_id_a bigint not null references nexora_orders(id) on delete cascade,
+  order_id_b bigint not null references nexora_orders(id) on delete cascade,
   created_at timestamptz not null default now(),
   constraint nexora_connections_ordered check (order_id_a < order_id_b),
   constraint nexora_connections_unique unique (order_id_a, order_id_b)
@@ -637,8 +641,8 @@ alter table nexora_connections enable row level security;
 
 create table if not exists nexora_messages (
   id bigint generated always as identity primary key,
-  from_order_id bigint not null references nexora_orders(id),
-  to_order_id bigint not null references nexora_orders(id),
+  from_order_id bigint not null references nexora_orders(id) on delete cascade,
+  to_order_id bigint not null references nexora_orders(id) on delete cascade,
   body text not null,
   created_at timestamptz not null default now(),
   read_at timestamptz
