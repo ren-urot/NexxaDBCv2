@@ -1113,3 +1113,42 @@ end;
 $$;
 
 grant execute on function save_push_subscription(text, text, text, text) to anon, authenticated;
+
+-- Web Push subscriptions for the ADMIN's own device(s) -- separate from
+-- nexora_push_subscriptions above, which is keyed by order_id and has
+-- no meaning for an admin (not a customer, no order of their own). Lets
+-- the admin get a real lock-screen notification when a new order needs
+-- approval, without keeping the Admin dashboard tab open (see
+-- send-admin-push Edge Function). save_admin_push_subscription is the
+-- only way to write here: is_admin() gates it, same as everything else
+-- admin-only in this app.
+create table if not exists nexora_admin_push_subscriptions (
+  id bigint generated always as identity primary key,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table nexora_admin_push_subscriptions enable row level security;
+
+create or replace function save_admin_push_subscription(p_endpoint text, p_p256dh text, p_auth text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_admin() then
+    raise exception 'Admin access required.';
+  end if;
+
+  insert into nexora_admin_push_subscriptions (endpoint, p256dh, auth)
+  values (p_endpoint, p_p256dh, p_auth)
+  on conflict (endpoint) do update set
+    p256dh = excluded.p256dh,
+    auth = excluded.auth;
+end;
+$$;
+
+grant execute on function save_admin_push_subscription(text, text, text) to authenticated;

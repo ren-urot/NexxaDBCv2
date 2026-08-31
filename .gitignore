@@ -36,5 +36,6 @@ supabase/migration-lead-chat-backfill.sql
 supabase/migration-lead-card-fix.sql
 supabase/migration-delete-lead.sql
 supabase/migration-owned-cards.sql
+supabase/migration-admin-push.sql
 supabase/.temp
 .vercel

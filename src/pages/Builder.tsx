@@ -16,7 +16,7 @@ import type { CardData, CardTheme, BuilderStep, BackgroundStyle, PaymentStatus }
 import BusinessCard from "../components/BusinessCard";
 import Logo from "../components/Logo";
 import { resolvePlan, daysRemaining } from "../data/plans";
-import { createOrder, upgradeTrialOrder, getOrderStatus, getPublicCard, supabaseConfigured, getErrorMessage } from "../lib/supabase";
+import { createOrder, upgradeTrialOrder, getOrderStatus, getPublicCard, supabaseConfigured, getErrorMessage, notifyAdminNewOrder } from "../lib/supabase";
 import { markOwnedOrder } from "../lib/deviceOwnership";
 import { compressImageToDataUrl } from "../lib/imageCompress";
 import { usePageMeta } from "../lib/pageMeta";
@@ -438,6 +438,7 @@ export default function Builder() {
       });
       setOrderCode(code);
       markOwnedOrder(code);
+      notifyAdminNewOrder(code).catch(() => {});
       const result = await getPublicCard(code);
       if (result) setLiveStatus(result.status);
       setStep("status");
@@ -472,6 +473,7 @@ export default function Builder() {
       });
       setOrderCode(code);
       markOwnedOrder(code);
+      notifyAdminNewOrder(code).catch(() => {});
       const result = await getPublicCard(code);
       if (result) {
         setLiveStatus(result.status);
@@ -508,6 +510,7 @@ export default function Builder() {
       setOrderCode(upgradeFrom.orderCode);
       setLiveStatus("submitted");
       setTrialExpiresAt(null);
+      notifyAdminNewOrder(upgradeFrom.orderCode).catch(() => {});
       goNext();
     } catch (err) {
       setSubmitError(getErrorMessage(err, "Failed to submit payment. Please try again."));
@@ -1095,6 +1098,7 @@ export default function Builder() {
                       });
                       setOrderCode(code);
                       markOwnedOrder(code);
+                      notifyAdminNewOrder(code).catch(() => {});
                       goNext();
                     } catch (err) {
                       setSubmitError(getErrorMessage(err, "Failed to submit payment. Please try again."));

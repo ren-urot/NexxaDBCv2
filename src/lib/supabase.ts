@@ -536,3 +536,33 @@ export async function sendPushNotification(fromOrderCode: string, toOrderCode: s
   });
   if (error) throw error;
 }
+
+// Registers the ADMIN's own device for Web Push (new-order alerts),
+// separate from a customer's push subscription -- gated by is_admin()
+// server-side, so only ever callable from a signed-in admin session.
+export async function saveAdminPushSubscription(subscription: PushSubscriptionJSON): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const keys = subscription.keys;
+  if (!subscription.endpoint || !keys?.p256dh || !keys?.auth) {
+    throw new Error("Incomplete push subscription");
+  }
+  const { error } = await supabase.rpc("save_admin_push_subscription", {
+    p_endpoint: subscription.endpoint,
+    p_p256dh: keys.p256dh,
+    p_auth: keys.auth,
+  });
+  if (error) throw error;
+}
+
+// Best-effort: asks send-admin-push to alert the admin's device(s) that
+// this order needs approval, right after submit_order/upgrade_trial_order
+// succeeds -- so the admin can find out without keeping the Admin
+// dashboard tab open. The Edge Function re-verifies server-side that the
+// order actually needs approval before sending anything.
+export async function notifyAdminNewOrder(orderCode: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("send-admin-push", {
+    body: { order_code: orderCode },
+  });
+  if (error) throw error;
+}

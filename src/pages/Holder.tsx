@@ -43,6 +43,7 @@ import { type SavedCard, loadCollectedCards, saveCollectedCards } from "../lib/c
 import { cacheCard, getCachedCard } from "../lib/cardCache";
 import { usePageMeta } from "../lib/pageMeta";
 import { isTrialExpired, daysRemaining, resolvePlan } from "../data/plans";
+import { urlBase64ToUint8Array } from "../lib/push";
 
 // NexxaDBC's own notification sound: a bright four-note ascending
 // arpeggio (C5-E5-G5-C6, cascading in then landing on a held top note),
@@ -157,15 +158,6 @@ async function notifyMessage(title: string, body: string, url: string) {
     // available), there's still an audible fallback.
     playMessageChime();
   }
-}
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(new ArrayBuffer(rawData.length));
-  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
 }
 
 // Subscribes this browser/device to Web Push and registers it against

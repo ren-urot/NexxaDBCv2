@@ -16,8 +16,36 @@ import {
   getSession,
   onAuthChange,
   subscribeToOrderEvents,
+  saveAdminPushSubscription,
   type OrderRow,
 } from "../lib/supabase";
+import { urlBase64ToUint8Array } from "../lib/push";
+
+// Registers this device for Web Push (new-order alerts), so the admin
+// can find out about an order needing approval even with the Admin tab
+// fully closed -- not just while it's open and subscribeToOrderEvents'
+// realtime listener is live. Safe to call repeatedly: getSubscription()
+// returns the existing one if already subscribed, and
+// save_admin_push_subscription upserts by endpoint.
+async function subscribeAdminToPush() {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+    if (!vapidKey) return;
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    }
+    await saveAdminPushSubscription(subscription.toJSON());
+  } catch {
+    // Best-effort: the realtime in-app alert still works regardless.
+  }
+}
 
 // Same branded chime as the chat notifications in Holder.tsx (a bright
 // four-note ascending arpeggio), used here as the fallback when a real
@@ -220,6 +248,22 @@ export default function Admin() {
   usePageMeta("Admin | NexxaDBC", true);
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-out" | "signed-in">("loading");
 
+  // Points "Add to Home Screen" at a separate manifest (name "NexxaDBC
+  // Admin", start_url /admin) instead of the main app's, so installing
+  // from here launches straight into the dashboard as its own app
+  // rather than opening Landing under the customer-facing name. Swapped
+  // back on unmount so navigating elsewhere in the SPA without a full
+  // reload doesn't leave the wrong manifest active for the rest of the
+  // site.
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    const previousHref = link?.getAttribute("href") ?? null;
+    link?.setAttribute("href", "/admin-manifest.json");
+    return () => {
+      if (previousHref) link?.setAttribute("href", previousHref);
+    };
+  }, []);
+
   useEffect(() => {
     if (!supabaseConfigured) {
       // No backend to authenticate against, so fall through to the dashboard,
@@ -261,6 +305,13 @@ function AdminDashboard() {
   // own realtime echo (e.g. clicking Approve shouldn't also pop a "status
   // changed" notice for the action you just took yourself).
   const selfActionIds = useRef<Set<number>>(new Set());
+
+  // Registers for push the moment permission is (or becomes) granted --
+  // covers both a returning admin who already granted it in a previous
+  // visit, and the moment requestNotifPermission below succeeds.
+  useEffect(() => {
+    if (notifPermission === "granted") subscribeAdminToPush();
+  }, [notifPermission]);
 
   useEffect(() => {
     if (!supabaseConfigured) {
