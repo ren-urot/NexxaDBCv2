@@ -259,10 +259,16 @@ export async function setLeadGenEnabled(orderCode: string, enabled: boolean): Pr
 // Submits a scanner's contact info to unlock a lead-gated card. SECURITY
 // DEFINER: nexora_leads has no direct-table policies at all, anon or
 // authenticated, so this RPC is the only way a lead ever gets written.
-export async function submitLead(orderCode: string, contact: string, name = ""): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.rpc("submit_lead", { p_order_code: orderCode, p_contact: contact, p_name: name });
+// Returns the order_code of an auto-provisioned, chat-only account
+// (plan_id 'lead') that's connected to the card owner, so the caller can
+// drop the lead straight into a chat thread with them (see Holder.tsx's
+// LeadGate) -- a lead has no real NexxaDBC card, this is the only way to
+// reach them for real-time follow-up.
+export async function submitLead(orderCode: string, contact: string, name = ""): Promise<string> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { data, error } = await supabase.rpc("submit_lead", { p_order_code: orderCode, p_contact: contact, p_name: name });
   if (error) throw error;
+  return data as string;
 }
 
 export interface LeadRow {

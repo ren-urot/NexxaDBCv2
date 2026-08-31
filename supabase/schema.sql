@@ -27,8 +27,10 @@ create table if not exists nexora_orders (
 -- authoritative amount) and widen method to allow the new Wise option.
 alter table nexora_orders add column if not exists amount_usd numeric not null default 0;
 alter table nexora_orders add column if not exists exchange_rate numeric not null default 0;
+-- 'none' added for auto-provisioned lead chat accounts (see submit_lead),
+-- which have no real payment method.
 alter table nexora_orders drop constraint if exists nexora_orders_method_check;
-alter table nexora_orders add constraint nexora_orders_method_check check (method in ('gcash', 'bank', 'wise'));
+alter table nexora_orders add constraint nexora_orders_method_check check (method in ('gcash', 'bank', 'wise', 'none'));
 
 -- Links an add-on card (Business plan: "Add New Cards") back to the order
 -- that owns the Card Holder it belongs to. Null on every normal, standalone
@@ -65,8 +67,15 @@ alter table nexora_orders add column if not exists trial_expires_at timestamptz;
 -- these features from real Business customers already relying on
 -- them; every NEW order from here on gets its real plan_id explicitly
 -- from submit_order/upgrade_trial_order.
-alter table nexora_orders add column if not exists plan_id text not null default 'business'
-  check (plan_id in ('trial', 'basic', 'pro', 'business'));
+alter table nexora_orders add column if not exists plan_id text not null default 'business';
+
+-- 'lead' added for auto-provisioned chat-only accounts (see submit_lead):
+-- a check constraint can't be altered in place, so the old one has to be
+-- dropped and recreated even on a fresh install (this is a no-op there,
+-- since drop if exists finds nothing yet).
+alter table nexora_orders drop constraint if exists nexora_orders_plan_id_check;
+alter table nexora_orders add constraint nexora_orders_plan_id_check
+  check (plan_id in ('trial', 'basic', 'pro', 'business', 'lead'));
 
 -- A payment reference is proof of one specific real-world transaction, so
 -- reusing one (whether by accident or to fraudulently claim a payment that
@@ -477,19 +486,35 @@ alter table nexora_leads enable row level security;
 -- in Holder.tsx), kept server-side too since this RPC is callable
 -- directly (anon key is public); the client checks alone are only a UX
 -- nicety, not enforcement.
+--
+-- Also auto-provisions a lightweight, chat-only account for the lead
+-- (plan_id = 'lead') and connects it to the card owner's family root,
+-- exactly as if they'd mutually scanned cards -- this is what lets the
+-- owner instant-message a lead right after capture, even though the
+-- lead never gets a real NexxaDBC card of their own. Returns the lead's
+-- new order_code so the client can drop them straight into that chat
+-- thread (see Holder.tsx's LeadGate). Return type changed from void to
+-- text, so the old signature has to be dropped first.
+drop function if exists submit_lead(text, text, text);
+
 create or replace function submit_lead(p_order_code text, p_contact text, p_name text default '')
-returns void
+returns text
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
   v_order_id bigint;
+  v_root_id bigint;
   v_name text := trim(p_name);
   v_contact text := trim(p_contact);
   v_digits text;
+  v_is_email boolean;
+  v_lead_id bigint;
+  v_lead_order_code text;
 begin
-  select id into v_order_id from nexora_orders where order_code = p_order_code;
+  select id, coalesce(parent_order_id, id) into v_order_id, v_root_id
+  from nexora_orders where order_code = p_order_code;
   if v_order_id is null then
     raise exception 'Unknown order code: %', p_order_code;
   end if;
@@ -499,11 +524,28 @@ begin
   end if;
 
   v_digits := regexp_replace(v_contact, '[\s()+-]', '', 'g');
-  if v_contact !~ '^[^\s@]+@[^\s@]+\.[^\s@]+$' and v_digits !~ '^\d{7,15}$' then
+  v_is_email := v_contact ~ '^[^\s@]+@[^\s@]+\.[^\s@]+$';
+  if not v_is_email and v_digits !~ '^\d{7,15}$' then
     raise exception 'Enter a valid email address or phone number.';
   end if;
 
   insert into nexora_leads (order_id, contact, name) values (v_order_id, v_contact, v_name);
+
+  insert into nexora_orders (
+    customer, email, template, amount, amount_usd, exchange_rate,
+    method, payment_ref, notes, status, card, plan_id
+  )
+  values (
+    v_name, case when v_is_email then v_contact else '' end, 'corporate', 0, 0, 0,
+    'none', '', '', 'approved', '{}'::jsonb, 'lead'
+  )
+  returning id, order_code into v_lead_id, v_lead_order_code;
+
+  insert into nexora_connections (order_id_a, order_id_b)
+  values (least(v_root_id, v_lead_id), greatest(v_root_id, v_lead_id))
+  on conflict (order_id_a, order_id_b) do nothing;
+
+  return v_lead_order_code;
 end;
 $$;
 
@@ -778,7 +820,12 @@ begin
   select plan_id into v_plan_from from nexora_orders where id = v_root_from;
   select plan_id into v_plan_to from nexora_orders where id = v_root_to;
 
-  if v_plan_from not in ('pro', 'business') or v_plan_to not in ('pro', 'business') then
+  -- 'lead' included: an auto-provisioned lead chat account (see
+  -- submit_lead) always has exactly one connection, to the specific
+  -- owner who captured it, so it's never a way to reach chat without
+  -- ever having been Pro/Business -- only the real owner side of that
+  -- one connection needs to be.
+  if v_plan_from not in ('pro', 'business', 'lead') or v_plan_to not in ('pro', 'business', 'lead') then
     raise exception 'Chat is available on the Pro and Business plans.';
   end if;
 

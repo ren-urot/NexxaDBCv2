@@ -451,7 +451,10 @@ function LeadGate({
 }: {
   ownerName: string;
   orderCode: string;
-  onUnlock: () => void;
+  // Receives the order_code of the auto-provisioned chat-only account
+  // submitLead creates for this lead, so the caller can offer/open a
+  // real-time chat thread with the owner right away.
+  onUnlock: (leadOrderCode: string) => void;
   onCancel?: () => void;
 }) {
   const [name, setName] = useState("");
@@ -485,9 +488,9 @@ function LeadGate({
     setSubmitting(true);
     setError(null);
     try {
-      await submitLead(orderCode, trimmed, trimmedName);
+      const leadOrderCode = await submitLead(orderCode, trimmed, trimmedName);
       markUnlockedCard(orderCode);
-      onUnlock();
+      onUnlock(leadOrderCode);
     } catch (err) {
       setError(getErrorMessage(err, "Something went wrong. Please try again."));
     } finally {
@@ -877,6 +880,12 @@ export default function Holder() {
   const [justUnlocked, setJustUnlocked] = useState(false);
   const gateUnlocked = justUnlocked || (orderCode ? isUnlockedCard(orderCode) : false);
   const showLeadGate = isStandalone && leadGenEnabled && !isOwnerDevice && !gateUnlocked;
+  // Set once a lead unlocks the card via LeadGate: their own new
+  // chat-only order_code, and the owner's order_code to open a thread
+  // with. Offered as a "Message" prompt alongside the now-revealed card
+  // (see below) rather than navigating away immediately, so they still
+  // get to see the card they came here for.
+  const [leadChat, setLeadChat] = useState<{ code: string; ownerCode: string } | null>(null);
   // Free Trial cards deactivate once trial_expires_at passes, unless the
   // owner upgraded (which clears is_trial server-side; see
   // upgrade_trial_order). Applies to the owner's own view too, not just
@@ -1045,12 +1054,17 @@ export default function Holder() {
   const canAddCard =
     Boolean(orderCode) && isOwnerDevice && familySize > 0 && isRootCard && rootPlanId === "business";
 
-  // Chat: Pro or Business, unlike the other gates above this isn't
-  // Business-only. Server-side send_chat_message re-checks both sides'
-  // plans anyway (see schema.sql), so this is purely a UI-visibility
-  // decision, not the real enforcement boundary.
+  // Chat: Pro, Business, or a lead's own auto-provisioned chat-only
+  // account (see submit_lead/LeadGate) -- unlike the other gates above
+  // this isn't Business-only. Server-side send_chat_message re-checks
+  // both sides' plans anyway (see schema.sql), so this is purely a
+  // UI-visibility decision, not the real enforcement boundary.
   const canChat =
-    Boolean(orderCode) && isOwnerDevice && isRootCard && (rootPlanId === "pro" || rootPlanId === "business");
+    Boolean(orderCode) &&
+    isOwnerDevice &&
+    isRootCard &&
+    (rootPlanId === "pro" || rootPlanId === "business" || rootPlanId === "lead");
+  const isLeadOnlyAccount = rootPlanId === "lead";
   const totalUnread = conversations.reduce((sum, c) => sum + c.unread_count, 0);
 
   // Deep link consumed from a tapped push/OS notification (see the `url`
@@ -1328,7 +1342,11 @@ export default function Holder() {
       <LeadGate
         ownerName={`${myCard.firstName} ${myCard.lastName}`.trim()}
         orderCode={orderCode}
-        onUnlock={() => setJustUnlocked(true)}
+        onUnlock={(leadOrderCode) => {
+          markOwnedOrder(leadOrderCode);
+          setLeadChat({ code: leadOrderCode, ownerCode: familyRoot?.order_code ?? orderCode });
+          setJustUnlocked(true);
+        }}
       />
     );
   }
@@ -1414,6 +1432,19 @@ export default function Holder() {
               </button>
             )}
           </div>
+          {leadChat && (
+            <div className="mx-5 mt-3">
+              <button
+                onClick={() =>
+                  navigate(`/holder/${leadChat.code}?tab=messages&from=${encodeURIComponent(leadChat.ownerCode)}`)
+                }
+                className="w-full flex items-center justify-center gap-2 border border-white/20 py-3 rounded-[10px] text-white text-xs tracking-wide hover:border-white/40 transition-colors"
+              >
+                <MessageCircle size={14} />
+                Message {`${myCard.firstName} ${myCard.lastName}`.trim() || "them"}
+              </button>
+            </div>
+          )}
           {isOwnerDevice && isTrialCard && !trialExpired && trialExpiresAt && (
             <div className="mx-5 mt-3 border border-white/15 rounded-[10px] px-4 py-3">
               <div className="text-white/60 text-[11px] leading-relaxed mb-2.5">
@@ -1695,12 +1726,17 @@ export default function Holder() {
       {tab === "messages" && !chatWith && (
         <div className="min-h-full flex flex-col">
           <div className="px-5 pt-1 pb-2 flex items-center gap-4 mt-[30px]">
-            <button
-              onClick={() => setTab("my-cards")}
-              className="text-white/70 hover:text-white transition-colors"
-            >
-              <ChevronLeft size={22} />
-            </button>
+            {/* A lead-only account has no cards to go back to (it was
+                auto-provisioned purely to chat with the owner that
+                captured it) -- nothing to render here for that case. */}
+            {!isLeadOnlyAccount && (
+              <button
+                onClick={() => setTab("my-cards")}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <ChevronLeft size={22} />
+              </button>
+            )}
             <div className="flex-1 text-white text-[15px] font-semibold">Messages</div>
           </div>
           {conversations.length === 0 ? (

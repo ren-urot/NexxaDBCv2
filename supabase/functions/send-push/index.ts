@@ -90,9 +90,12 @@ Deno.serve(async (req: Request) => {
     return new Response("Cannot notify yourself", { status: 400, headers: corsHeaders });
   }
 
+  // 'lead' included: mirrors send_chat_message's check (see schema.sql)
+  // now that a lead's auto-provisioned chat account uses that plan_id.
+  const chatPlans = ["pro", "business", "lead"];
   const { data: fromRoot } = await supabase.from("nexora_orders").select("plan_id").eq("id", fromRootId).single();
   const { data: toRoot } = await supabase.from("nexora_orders").select("plan_id").eq("id", toRootId).single();
-  if (!["pro", "business"].includes(fromRoot?.plan_id) || !["pro", "business"].includes(toRoot?.plan_id)) {
+  if (!chatPlans.includes(fromRoot?.plan_id) || !chatPlans.includes(toRoot?.plan_id)) {
     return new Response("Chat is available on the Pro and Business plans", { status: 403, headers: corsHeaders });
   }
 
