@@ -494,6 +494,18 @@ function LeadGate({
     try {
       const leadOrderCode = await submitLead(orderCode, trimmed, trimmedName);
       markUnlockedCard(orderCode);
+      // Requested right here, in the same motion as submitting the form
+      // (the owner is the one who's supposed to be proactive chasing a
+      // sale, not the lead) -- rather than waiting for a later, separate
+      // tap into the chat. The browser's own native Allow prompt still
+      // has to appear once (no site can skip that, ever), but this way
+      // it's part of the same flow instead of a disconnected second
+      // step, and if they allow it, push is registered immediately so
+      // their device is ready before they've even seen the chat.
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") subscribeToPush(leadOrderCode);
+      }
       onUnlock(leadOrderCode);
     } catch (err) {
       setError(getErrorMessage(err, "Something went wrong. Please try again."));
