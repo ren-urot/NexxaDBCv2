@@ -845,6 +845,14 @@ export default function Holder() {
   const [chatMessages, setChatMessages] = useState<ChatMessageRow[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  // Scrolled to on every chatMessages change (thread opened, history
+  // loaded, new message sent or received) so a long thread always opens
+  // already at the latest message instead of the top.
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!chatWith) return;
+    chatEndRef.current?.scrollIntoView({ block: "end" });
+  }, [chatWith, chatMessages]);
   const [chatError, setChatError] = useState<string | null>(null);
   // Real OS notification (respects the phone's actual notification sound,
   // volume, and Do Not Disturb settings), same pattern already used for
@@ -1589,6 +1597,7 @@ export default function Holder() {
                 </div>
               );
             })}
+            <div ref={chatEndRef} />
           </div>
           {chatError && <div className="px-5 pb-2 text-red-400 text-[11px]">{chatError}</div>}
           <div className="px-5 py-3 flex items-center gap-2">
