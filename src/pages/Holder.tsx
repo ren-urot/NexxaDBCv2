@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, ChevronUp, ChevronDown, Menu, IdCard, ScanLine, Plus, Settings, X, Download, Smartphone, MessageCircle, Send } from "lucide-react";
 import type { CardData, PaymentStatus } from "../types";
@@ -182,10 +182,21 @@ async function subscribeToPush(orderCode: string) {
   }
 }
 
-// How many of the most recent messages a thread shows by default; older
-// ones collapse behind a "Show N earlier messages" button (see the
-// chatWith view below) instead of all rendering at once.
-const CHAT_VISIBLE_LIMIT = 30;
+// Fallback for how many of the most recent messages a thread shows by
+// default, before its actual on-screen height is known; older ones
+// collapse behind a "Show N earlier messages" button (see the chatWith
+// view below) instead of all rendering at once. The real limit is
+// computed per-device from the scroll container's own measured height
+// (see chatListRef/CHAT_ROW_HEIGHT_PX below), so this only matters for
+// the first paint before that measurement runs.
+const CHAT_VISIBLE_LIMIT_FALLBACK = 20;
+// Rough average height (px) of one message bubble + its vertical gap at
+// this view's text-xs sizing, used to convert the container's measured
+// pixel height into an approximate message count. Deliberately a rough
+// estimate rather than measuring every real bubble (which varies with
+// message length): the goal is "roughly one phone screen," not a
+// pixel-exact cutoff.
+const CHAT_ROW_HEIGHT_PX = 40;
 
 const BASE_CARD: CardData = {
   template: "corporate",
@@ -920,6 +931,20 @@ export default function Holder() {
   const [showAllMessages, setShowAllMessages] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  // How many recent messages actually fit the visible thread area on
+  // THIS device, measured below rather than a fixed count -- a small
+  // phone should collapse sooner than a tall one. Recomputed whenever a
+  // thread opens, since that's the only time the container needs a
+  // fresh measurement.
+  const [chatVisibleLimit, setChatVisibleLimit] = useState(CHAT_VISIBLE_LIMIT_FALLBACK);
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    if (!chatWith) return;
+    const el = chatListRef.current;
+    if (!el) return;
+    const rows = Math.ceil(el.clientHeight / CHAT_ROW_HEIGHT_PX);
+    setChatVisibleLimit(Math.max(6, rows));
+  }, [chatWith]);
   // Scrolled to on every chatMessages change (thread opened, history
   // loaded, new message sent or received) so a long thread always opens
   // already at the latest message instead of the top.
@@ -1672,19 +1697,19 @@ export default function Holder() {
               })()}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+          <div ref={chatListRef} className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
             {chatMessages.length === 0 && (
               <p className="text-white/30 text-xs text-center mt-8">No messages yet. Say hello!</p>
             )}
-            {!showAllMessages && chatMessages.length > CHAT_VISIBLE_LIMIT && (
+            {!showAllMessages && chatMessages.length > chatVisibleLimit && (
               <button
                 onClick={() => setShowAllMessages(true)}
                 className="block mx-auto mb-2 text-white/40 hover:text-white/70 text-[11px] transition-colors"
               >
-                Show {chatMessages.length - CHAT_VISIBLE_LIMIT} earlier messages
+                Show {chatMessages.length - chatVisibleLimit} earlier messages
               </button>
             )}
-            {(showAllMessages ? chatMessages : chatMessages.slice(-CHAT_VISIBLE_LIMIT)).map((m, i) => {
+            {(showAllMessages ? chatMessages : chatMessages.slice(-chatVisibleLimit)).map((m, i) => {
               const mine = m.from_order_code === orderCode;
               return (
                 <div key={i} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
