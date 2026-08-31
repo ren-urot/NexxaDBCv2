@@ -112,7 +112,7 @@ function playMessageChime() {
 // allows creating a notification via a ServiceWorkerRegistration. Using
 // the same call as the push handler in src/sw.ts also means the
 // foreground and lock-screen paths behave identically everywhere.
-async function notifyMessage(title: string, body: string) {
+async function notifyMessage(title: string, body: string, url: string) {
   try {
     // `vibrate` is a real, widely-supported NotificationOptions field
     // (Chrome/Android) that TypeScript's DOM lib doesn't declare, hence
@@ -120,13 +120,25 @@ async function notifyMessage(title: string, body: string) {
     // Same tag as the push-triggered notification in src/sw.ts: if a
     // Web Push for this same message also lands while the tab is open,
     // the browser replaces this one in place instead of stacking a
-    // second banner/sound on top of it.
+    // second banner/sound on top of it. `data.url` is read by
+    // notificationclick in src/sw.ts (the same handler fires for a
+    // showNotification() call like this one, not just real push) --
+    // without it, tapping this notification had nowhere to go and fell
+    // through to the default "/", landing on Landing instead of the chat.
     const options = {
       body,
       tag: "nexxadbc-message",
+      // Without this, a second notification arriving on the same tag
+      // (the push-triggered one in src/sw.ts landing shortly after this
+      // foreground one, or vice versa) silently replaces the first one
+      // in place with no new sound/vibration -- which looked exactly
+      // like "the alert works sometimes, randomly" depending on which
+      // path won the race.
+      renotify: true,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       vibrate: [70, 40, 70, 40, 70, 40, 180],
+      data: { url },
     } as NotificationOptions;
     if ("serviceWorker" in navigator) {
       const registration = await navigator.serviceWorker.ready;
@@ -1018,6 +1030,25 @@ export default function Holder() {
     Boolean(orderCode) && isOwnerDevice && isRootCard && (rootPlanId === "pro" || rootPlanId === "business");
   const totalUnread = conversations.reduce((sum, c) => sum + c.unread_count, 0);
 
+  // Deep link consumed from a tapped push/OS notification (see the `url`
+  // sendPushNotification builds in handleSendMessage below): jumps
+  // straight into the specific conversation instead of just landing on
+  // whatever tab the holder happened to be on. Without this, the
+  // notification's target URL had no tab/thread info at all and every
+  // tap landed on Landing instead of the chat. Stripped from the address
+  // bar the same way the provisioning "claim" marker above is, so it
+  // doesn't linger if the URL gets shared/reopened later.
+  useEffect(() => {
+    if (!canChat) return;
+    const qs = new URLSearchParams(location.search);
+    const withCode = qs.get("from");
+    if (qs.get("tab") !== "messages" && !withCode) return;
+    setTab("messages");
+    if (withCode) setChatWith(withCode);
+    navigate(`/holder/${params.orderCode}`, { replace: true, state: navState });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canChat, location.search]);
+
   // The broadcast subscription below is deliberately scoped to
   // [canChat, orderCode] only, not resubscribing on every state change
   // (that would tear down and rejoin the socket on every message, risking
@@ -1077,7 +1108,8 @@ export default function Holder() {
       if (notifPermissionRef.current === "granted") {
         const senderCard = conversationsRef.current.find((c) => c.with_order_code === payload.from)?.with_card;
         const senderName = senderCard ? `${senderCard.firstName} ${senderCard.lastName}`.trim() : "New message";
-        notifyMessage(senderName || "New message", payload.body);
+        const notifyUrl = `${window.location.origin}/holder/${orderCode}?tab=messages&from=${encodeURIComponent(payload.from)}`;
+        notifyMessage(senderName || "New message", payload.body, notifyUrl);
       } else {
         playMessageChime();
       }
@@ -1129,7 +1161,14 @@ export default function Holder() {
       // itself is already saved by sendChatMessage above regardless of
       // whether this succeeds, so a failure here is silently swallowed.
       const myName = `${myCard.firstName} ${myCard.lastName}`.trim();
-      sendPushNotification(chatWith, myName || "New message", body).catch(() => {});
+      // Deep link straight into this thread: chatWith, from the sender's
+      // side, IS the recipient's own order_code (that's who /holder/:code
+      // needs to identify as), and `from` tells their page which
+      // conversation to auto-open (see the deep-link effect above canChat).
+      // Without this the notification's click target had no path/query at
+      // all and every tap landed on Landing instead of the chat.
+      const pushUrl = `${window.location.origin}/holder/${chatWith}?tab=messages&from=${encodeURIComponent(orderCode)}`;
+      sendPushNotification(chatWith, myName || "New message", body, pushUrl).catch(() => {});
       setChatInput("");
       refreshConversations();
     } catch (err) {

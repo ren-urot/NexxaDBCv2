@@ -33,11 +33,17 @@ self.addEventListener("push", (event: PushEvent) => {
   }
 
   const title = data.title || "NexxaDBC";
-  const options: NotificationOptions & { vibrate?: number[] } = {
+  const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean } = {
     body: data.body || "",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: "nexxadbc-message",
+    // Without this, a second notification on the same tag (the
+    // foreground one from Holder.tsx's notifyMessage landing shortly
+    // before or after this push, since both paths fire independently)
+    // silently replaces this one with no new sound/vibration -- looked
+    // exactly like "the alert works sometimes, randomly."
+    renotify: true,
     data: { url: data.url || "/" },
     // Matches the in-app chime's rhythm (see Holder.tsx playMessageChime)
     // so the haptic feels like the same "brand" on platforms that honor it.

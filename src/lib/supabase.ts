@@ -490,10 +490,10 @@ export async function savePushSubscription(orderCode: string, subscription: Push
 // itself is already persisted by send_chat_message regardless of whether
 // this call succeeds, so a failed push here just means a missed alert,
 // not a missed message.
-export async function sendPushNotification(toOrderCode: string, title: string, body: string): Promise<void> {
+export async function sendPushNotification(toOrderCode: string, title: string, body: string, url?: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.functions.invoke("send-push", {
-    body: { to_order_code: toOrderCode, title, body },
+    body: { to_order_code: toOrderCode, title, body, url },
   });
   if (error) throw error;
 }
