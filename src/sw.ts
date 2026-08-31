@@ -1,8 +1,21 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute } from "workbox-precaching";
+import { clientsClaim } from "workbox-core";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 
 declare let self: ServiceWorkerGlobalScope;
 
+// registerType: 'autoUpdate' (vite.config.ts) relies on the new worker
+// taking over immediately instead of sitting "waiting" until every open
+// tab of the app is closed, which on a real phone can be never. Without
+// these, a device that already had NexxaDBC installed before this file
+// existed keeps running its old worker -- which has no push listener at
+// all -- indefinitely, even though push subscribing and sending both
+// still silently "succeed" (subscribing only needs a registration to
+// exist, not any particular worker code running).
+self.skipWaiting();
+clientsClaim();
+
+cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 // Web Push delivery: fires even when no NexxaDBC tab is open at all,
