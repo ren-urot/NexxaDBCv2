@@ -97,20 +97,21 @@ function playMessageChime() {
   }
 }
 
-// Shows a real OS-level notification (so the message surfaces even if
-// the Card Holder tab is backgrounded, and respects the phone's Do Not
-// Disturb) without letting it double up with playMessageChime above:
-// `silent: true` tells the OS not to play its own default sound, since
-// our own branded chime is already the intended sound. `vibrate` gives
-// the same "brand" treatment to the haptic (a short-short-short-long
-// pattern echoing the chime's rhythm) on the platforms that support it;
-// ignored harmlessly everywhere else.
+// Shows a real OS-level notification: no `silent` option, so the OS
+// plays its own default notification sound at the phone's actual
+// notification volume, respecting Do Not Disturb, instead of a
+// synthesized tone through the browser's media volume. The custom
+// chime above sounded fine in testing but was reported inaudible on a
+// real phone from across the room, so this is the actual sound now;
+// playMessageChime is kept only as a fallback for when permission isn't
+// granted (see the caller below). `vibrate` gives Android a matching
+// haptic pattern; ignored harmlessly on platforms that don't support it.
 function notifyMessage(title: string, body: string) {
   try {
     // `vibrate` is a real, widely-supported NotificationOptions field
     // (Chrome/Android) that TypeScript's DOM lib doesn't declare, hence
     // the cast; ignored harmlessly on platforms that don't support it.
-    const options = { body, silent: true, vibrate: [70, 40, 70, 40, 70, 40, 180] } as NotificationOptions;
+    const options = { body, vibrate: [70, 40, 70, 40, 70, 40, 180] } as NotificationOptions;
     new Notification(title, options);
   } catch {
     // No-op: playMessageChime is always called separately regardless.
@@ -948,15 +949,18 @@ export default function Holder() {
   useEffect(() => {
     if (!canChat || !orderCode) return;
     const unsubscribe = subscribeToChatMessages(orderCode, (payload) => {
-      // The branded chime always plays: it's the actual "NexxaDBC sound",
-      // and a real OS Notification can never carry a custom audio file
-      // (every platform just plays its own default sound instead), so
-      // this is the only path that produces it.
-      playMessageChime();
+      // Real OS notification first: it plays the phone's actual
+      // notification sound at the phone's actual notification volume,
+      // which is audible in real-world use in a way a synthesized
+      // in-page tone isn't. playMessageChime is only a fallback for when
+      // permission was never granted (or isn't supported at all), so
+      // there's still some audible cue either way.
       if (notifPermissionRef.current === "granted") {
         const senderCard = conversationsRef.current.find((c) => c.with_order_code === payload.from)?.with_card;
         const senderName = senderCard ? `${senderCard.firstName} ${senderCard.lastName}`.trim() : "New message";
         notifyMessage(senderName || "New message", payload.body);
+      } else {
+        playMessageChime();
       }
       refreshConversations();
       setChatWith((current) => {
