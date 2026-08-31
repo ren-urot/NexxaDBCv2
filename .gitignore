@@ -32,5 +32,6 @@ supabase/migration-cascade-delete.sql
 supabase/migration-admin-fix.sql
 supabase/migration-lead-validation.sql
 supabase/migration-lead-chat.sql
+supabase/migration-lead-chat-backfill.sql
 supabase/.temp
 .vercel
