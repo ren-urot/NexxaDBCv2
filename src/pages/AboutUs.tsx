@@ -5,7 +5,7 @@ import { usePageMeta } from "../lib/pageMeta";
 const VALUES = [
   {
     title: "Paperless by default",
-    body: "A physical card runs out, gets lost, or goes stale the moment your number changes. A digital one doesn't.",
+    body: "A physical card runs out right when you need one, or gets left behind entirely. A digital one is always on your phone.",
   },
   {
     title: "Instant, not eventual",
@@ -49,7 +49,7 @@ export default function AboutUs() {
           <p className="text-lg text-[var(--color-muted-fg)] leading-relaxed mb-6">
             So we built a card that lives on your phone instead of your wallet. Set it up once, share it by
             scanning a QR code, and it's exchanged instantly, no app required to receive it, no typos, no reprint
-            when your title or number changes.
+            costs every time you hand it out.
           </p>
           <p className="text-lg text-[var(--color-muted-fg)] leading-relaxed">
             Every card comes with its own Holder, so the cards you collect from other people stay organized in one
