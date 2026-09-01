@@ -280,7 +280,7 @@ export default function Landing() {
           below. Percentage positioning keeps it in the same relative
           spot on the photo regardless of how big the photo renders. */}
       <div
-        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4"
+        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)] lg:[transform-origin:top_right]"
         style={{ top: "33%", right: "3%" }}
       >
         <div className="flex-1 min-w-0">
@@ -405,7 +405,7 @@ export default function Landing() {
             <div className="mt-12 lg:hidden">{heroPhotoBlock}</div>
           </div>
 
-          <div className="relative z-10 max-w-[1224px] bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
+          <div className="relative z-10 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
             <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 shrink-0">
               {HERO_STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
