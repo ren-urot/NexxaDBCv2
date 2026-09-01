@@ -25,6 +25,7 @@ dist-ssr
 
 graphify-out
 supabase/diagnose.sql
+supabase/diagnose-is-admin.sql
 supabase/migration-plan-id.sql
 supabase/migration-chat.sql
 supabase/migration-push.sql
