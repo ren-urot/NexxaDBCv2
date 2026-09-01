@@ -415,9 +415,9 @@ export default function Landing() {
                 </div>
               ))}
             </div>
-            <div className="flex flex-col gap-2 shrink-0">
-              <div className="text-[11px] text-[var(--color-muted-fg)] whitespace-nowrap">Trusted by Professionals and Businesses</div>
-              <img src={heroTrustedLogos} alt="RE/MAX, Ayala Land, ACN, BNI" className="h-5 w-auto" />
+            <div className="flex flex-col gap-2 shrink-0 -translate-x-[30px]">
+              <div className="text-[26px] text-[var(--color-muted-fg)] whitespace-nowrap">Trusted by Professionals and Businesses</div>
+              <img src={heroTrustedLogos} alt="RE/MAX, Ayala Land, ACN, BNI" className="h-[35px] w-auto" />
             </div>
           </div>
         </div>
