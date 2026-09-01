@@ -270,30 +270,15 @@ export default function Landing() {
         className="w-full h-auto"
       />
 
-      {/* Left phone screen overlay: card identity, sits in the blank
-          gap the photo leaves between its baked-in orange header bar
-          and QR code. Coordinates measured directly off the source
-          image's pixels, not eyeballed -- the phone screen is a
-          precise, narrow target. */}
-      <div className="absolute text-white text-center leading-none" style={{ left: "37%", top: "33.1%", width: "9%" }}>
-        <div className="text-[6px] sm:text-[7px] font-bold tracking-tight">Nexxa|DBC</div>
-      </div>
-      <div className="absolute text-center leading-none" style={{ left: "37%", top: "36.6%", width: "9%" }}>
-        <div className="text-[6px] sm:text-[7px] font-semibold text-[var(--color-foreground)]">John Doe</div>
-        <div className="text-[5px] text-[var(--color-muted-fg)] mt-[2px]">CEO</div>
-      </div>
-
-      {/* Right phone screen overlay: lead-capture form heading, in the
-          blank space above the photo's baked-in person icon and field
-          placeholders. */}
-      <div className="absolute text-center leading-none whitespace-nowrap" style={{ left: "54.8%", top: "30.8%", width: "9.5%" }}>
-        <div className="text-[6px] sm:text-[7px] font-semibold text-[var(--color-foreground)]">Send your info</div>
-        <div className="hidden sm:block text-[5px] text-[var(--color-muted-fg)] mt-[2px]">Let&rsquo;s stay connected!</div>
-      </div>
-
       {/* Floating leads-tracking widget: demo data illustrating the
           Real-time Insights feature, not a live figure. */}
-      <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] p-5 w-[280px] sm:w-[340px] flex items-stretch gap-4">
+      {/* The lg:-only translate compensates for the 1.4x scale on this
+          whole block's desktop ancestor (see heroPhotoBlock's other
+          usage below) -- a flat 60px/30px on-screen shift needs
+          60/1.4 and 30/1.4 here so it lands correctly post-scale. Left
+          off at the mobile size, which isn't inside that scaled
+          ancestor. */}
+      <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-5 py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-4 lg:[transform:translate(-42.86px,-43.1px)]">
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
           <div className="flex items-baseline gap-2 mt-0.5">
