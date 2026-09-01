@@ -71,7 +71,7 @@ function BackgroundPattern({ style, accent, imageUrl }: { style: BackgroundStyle
     return (
       <div
         className="absolute inset-0 pointer-events-none bg-cover bg-center opacity-[0.22]"
-        style={{ backgroundImage: `url("${imageUrl}")` }}
+        style={{ backgroundImage: `url("${imageUrl}")`, filter: "brightness(0.8)" }}
       />
     );
   }
@@ -210,12 +210,6 @@ function renderCard(data: CardData, interactive: boolean) {
   const overlays = (
     <>
       <BackgroundPattern style={data.background ?? "none"} accent={accentOverride || "#6366f1"} imageUrl={data.backgroundImageUrl} />
-      {/* Darkens the card background by 20% (a solid black layer at 20%
-          opacity is equivalent to multiplying every channel by 0.8) --
-          stacked above the base bg-color and any pattern/uploaded image,
-          but below the logo and text content, so only the background
-          itself darkens. */}
-      <div className="absolute inset-0 pointer-events-none bg-black/20" />
       {data.logoUrl && <LogoBadge src={data.logoUrl} />}
     </>
   );
