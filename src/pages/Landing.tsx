@@ -401,7 +401,7 @@ export default function Landing() {
             <div className="mt-12 lg:hidden">{heroPhotoBlock}</div>
           </div>
 
-          <div className="bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
+          <div className="relative z-10 bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
             <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 shrink-0">
               {HERO_STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
