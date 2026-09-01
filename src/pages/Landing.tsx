@@ -278,7 +278,7 @@ export default function Landing() {
           60/1.4 and 30/1.4 here so it lands correctly post-scale. Left
           off at the mobile size, which isn't inside that scaled
           ancestor. */}
-      <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-5 py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-4 lg:[transform:translate(-42.86px,-43.1px)]">
+      <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-5 py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-4 lg:[transform:translate(-98.29px,-74.86px)_scale(0.8)]">
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
           <div className="flex items-baseline gap-2 mt-0.5">
@@ -371,12 +371,12 @@ export default function Landing() {
                 your business.
               </p>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-10 max-w-lg">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 mb-10 max-w-[410px]">
                 {HERO_FEATURES.map((f) => (
                   <div key={f.title}>
-                    <f.Icon size={26} className="text-[var(--color-accent)] mb-3" strokeWidth={1.75} />
-                    <div className="text-sm font-semibold mb-1">{f.title}</div>
-                    <p className="text-[13px] text-[var(--color-muted-fg)] leading-snug">{f.body}</p>
+                    <f.Icon size={21} className="text-[var(--color-accent)] mb-2" strokeWidth={1.75} />
+                    <div className="text-[11px] font-semibold mb-1 whitespace-nowrap">{f.title}</div>
+                    <p className="text-[10px] text-[var(--color-muted-fg)] leading-snug">{f.body}</p>
                   </div>
                 ))}
               </div>
