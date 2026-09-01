@@ -327,37 +327,35 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-background)] overflow-x-hidden">
       {/* Nav */}
-      <nav className="border-b border-[var(--color-border)]">
-        <div className="w-full max-w-[1320px] mx-auto px-6 md:px-12 py-5 flex items-center justify-between">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">
-            <Logo height={20} />
+      <nav className="border-b border-[var(--color-border)] px-6 md:px-12 py-5 flex items-center justify-between">
+        <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">
+          <Logo height={20} />
+        </button>
+        <div className="hidden md:flex items-center gap-8 text-sm text-[var(--color-foreground)]">
+          <button onClick={() => scrollToId("how-it-works")} className="hover:text-[var(--color-accent)] transition-colors">
+            How it Works
           </button>
-          <div className="hidden md:flex items-center gap-8 text-sm text-[var(--color-foreground)]">
-            <button onClick={() => scrollToId("how-it-works")} className="hover:text-[var(--color-accent)] transition-colors">
-              How it Works
-            </button>
-            <button onClick={() => scrollToId("pricing")} className="hover:text-[var(--color-accent)] transition-colors">
-              Pricing
-            </button>
-            <button
-              onClick={() => scrollToId("pricing")}
-              className="border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-8 py-2.5 rounded-[7px] hover:bg-[var(--color-accent)] hover:text-white transition-colors"
-            >
-              Create Card
-            </button>
-          </div>
+          <button onClick={() => scrollToId("pricing")} className="hover:text-[var(--color-accent)] transition-colors">
+            Pricing
+          </button>
           <button
             onClick={() => scrollToId("pricing")}
-            className="md:hidden border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-4 py-2 rounded-[7px]"
+            className="border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-8 py-2.5 rounded-[7px] hover:bg-[var(--color-accent)] hover:text-white transition-colors"
           >
             Create Card
           </button>
         </div>
+        <button
+          onClick={() => scrollToId("pricing")}
+          className="md:hidden border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-4 py-2 rounded-[7px]"
+        >
+          Create Card
+        </button>
       </nav>
 
       {/* Hero */}
       <section className="relative pt-16 pb-16 bg-white overflow-hidden">
-        <div className="w-full max-w-[1320px] mx-auto px-6 md:px-12">
+        <div className="w-full px-6 md:px-12">
           <div className="mb-16">
             <div className="relative z-10 lg:max-w-[820px]">
               <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
