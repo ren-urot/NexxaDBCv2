@@ -327,30 +327,32 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-background)] overflow-x-hidden">
       {/* Nav */}
-      <nav className="border-b border-[var(--color-border)] px-6 md:px-12 py-5 flex items-center justify-between">
-        <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">
-          <Logo height={20} />
-        </button>
-        <div className="hidden md:flex items-center gap-8 text-sm text-[var(--color-foreground)]">
-          <button onClick={() => scrollToId("how-it-works")} className="hover:text-[var(--color-accent)] transition-colors">
-            How it Works
+      <nav className="border-b border-[var(--color-border)]">
+        <div className="w-full max-w-[1320px] mx-auto px-6 md:px-12 py-5 flex items-center justify-between">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">
+            <Logo height={20} />
           </button>
-          <button onClick={() => scrollToId("pricing")} className="hover:text-[var(--color-accent)] transition-colors">
-            Pricing
-          </button>
+          <div className="hidden md:flex items-center gap-8 text-sm text-[var(--color-foreground)]">
+            <button onClick={() => scrollToId("how-it-works")} className="hover:text-[var(--color-accent)] transition-colors">
+              How it Works
+            </button>
+            <button onClick={() => scrollToId("pricing")} className="hover:text-[var(--color-accent)] transition-colors">
+              Pricing
+            </button>
+            <button
+              onClick={() => scrollToId("pricing")}
+              className="border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-8 py-2.5 rounded-[7px] hover:bg-[var(--color-accent)] hover:text-white transition-colors"
+            >
+              Create Card
+            </button>
+          </div>
           <button
             onClick={() => scrollToId("pricing")}
-            className="border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-8 py-2.5 rounded-[7px] hover:bg-[var(--color-accent)] hover:text-white transition-colors"
+            className="md:hidden border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-4 py-2 rounded-[7px]"
           >
             Create Card
           </button>
         </div>
-        <button
-          onClick={() => scrollToId("pricing")}
-          className="md:hidden border border-[var(--color-accent)] text-[var(--color-accent)] text-sm px-4 py-2 rounded-[7px]"
-        >
-          Create Card
-        </button>
       </nav>
 
       {/* Hero */}
@@ -431,9 +433,19 @@ export default function Landing() {
             (which has no horizontal padding of its own -- padding
             lives on the inner max-w wrapper instead) so right-0 lands
             on the actual viewport edge regardless of the max-w-[1320px]
-            centering above. */}
+            centering above.
+
+            max-w-[662px] caps it at exactly what 46% resolves to at
+            1440px (the width this was tuned against) -- without it,
+            width (and therefore height, since the image keeps its
+            aspect ratio) keeps growing past that on wider monitors,
+            and since the Total Leads widget is bottom-anchored inside
+            this block, a taller photo pushes the widget down far
+            enough to collide with the trust bar below. The text column
+            doesn't grow past its own max-w-[820px] either, so without
+            this cap the two drift apart at wide viewports. */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%]"
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%] max-w-[662px]"
           style={{ transform: "translateY(-40px) scale(1.4)", transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
