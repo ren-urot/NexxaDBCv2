@@ -262,6 +262,83 @@ export default function Landing() {
     }
   };
 
+  const heroPhotoBlock = (
+    <div className="relative mx-auto max-w-[520px] lg:max-w-none">
+      <img
+        src={heroPhoto}
+        alt="Two professionals exchanging digital business cards by scanning a QR code"
+        className="w-full h-auto"
+      />
+
+      {/* Left phone screen overlay: card identity, sits in the blank
+          gap the photo leaves between its baked-in orange header bar
+          and QR code. Coordinates measured directly off the source
+          image's pixels, not eyeballed -- the phone screen is a
+          precise, narrow target. */}
+      <div className="absolute text-white text-center leading-none" style={{ left: "37%", top: "33.1%", width: "9%" }}>
+        <div className="text-[6px] sm:text-[7px] font-bold tracking-tight">Nexxa|DBC</div>
+      </div>
+      <div className="absolute text-center leading-none" style={{ left: "37%", top: "36.6%", width: "9%" }}>
+        <div className="text-[6px] sm:text-[7px] font-semibold text-[var(--color-foreground)]">John Doe</div>
+        <div className="text-[5px] text-[var(--color-muted-fg)] mt-[2px]">CEO</div>
+      </div>
+
+      {/* Right phone screen overlay: lead-capture form heading, in the
+          blank space above the photo's baked-in person icon and field
+          placeholders. */}
+      <div className="absolute text-center leading-none whitespace-nowrap" style={{ left: "54.8%", top: "30.8%", width: "9.5%" }}>
+        <div className="text-[6px] sm:text-[7px] font-semibold text-[var(--color-foreground)]">Send your info</div>
+        <div className="hidden sm:block text-[5px] text-[var(--color-muted-fg)] mt-[2px]">Let&rsquo;s stay connected!</div>
+      </div>
+
+      {/* Floating leads-tracking widget: demo data illustrating the
+          Real-time Insights feature, not a live figure. */}
+      <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] p-5 w-[280px] sm:w-[340px] flex items-stretch gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <div className="text-[26px] font-semibold leading-none">258</div>
+            <span className="flex items-center gap-0.5 text-[11px] font-semibold text-green-600">&#9650; 32%</span>
+          </div>
+          <div className="text-[11px] text-[var(--color-muted-fg)] mt-1 mb-3">vs last 30 days</div>
+          <svg viewBox="0 0 140 36" className="w-full h-9" preserveAspectRatio="none">
+            <polyline
+              points="0,30 16,26 32,28 48,16 64,20 80,10 96,14 112,6 128,10 140,2"
+              fill="none"
+              stroke="var(--color-accent)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <div className="w-px bg-[var(--color-border-2)] shrink-0" />
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="relative w-14 h-14 rounded-full shrink-0" style={{ background: "conic-gradient(#ff3b00 0deg 167.4deg, #f5a623 167.4deg 304.2deg, #2f6feb 304.2deg 360deg)" }}>
+            <div className="absolute inset-[5px] bg-white rounded-full" />
+          </div>
+          <ul className="text-[10px] leading-tight space-y-1.5">
+            <li className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-[2px] bg-[var(--color-accent)] shrink-0" />
+              <span>New</span>
+              <span className="font-semibold ml-2">120</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-[2px] bg-[#f5a623] shrink-0" />
+              <span>Saved</span>
+              <span className="font-semibold ml-2">98</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-[2px] bg-[#2f6feb] shrink-0" />
+              <span>Contacted</span>
+              <span className="font-semibold ml-2">40</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-background)] overflow-x-hidden">
       {/* Nav */}
@@ -292,14 +369,14 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="px-6 md:px-12 pt-16 pb-16 bg-[var(--color-hero)] overflow-hidden">
-        <div className="w-full max-w-[1320px] mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
-            <div>
+      <section className="relative pt-16 pb-16 bg-white overflow-hidden">
+        <div className="w-full max-w-[1320px] mx-auto px-6 md:px-12">
+          <div className="mb-16">
+            <div className="relative z-10 lg:max-w-[820px]">
               <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
                 Smart. Professional. Paperless.
               </span>
-              <h1 className="text-[40px] sm:text-[50px] lg:text-[58px] font-semibold tracking-tight leading-[1.08] mb-6">
+              <h1 className="text-[40px] sm:text-[50px] lg:text-[62px] font-semibold tracking-tight leading-[1.08] mb-6 whitespace-normal lg:whitespace-nowrap">
                 More Than a Card.
                 <br />
                 It&rsquo;s a <span className="text-[var(--color-accent)]">Lead Generator.</span>
@@ -331,72 +408,12 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="relative mx-auto max-w-[520px] lg:max-w-none">
-              <img
-                src={heroPhoto}
-                alt="Two professionals exchanging digital business cards by scanning a QR code"
-                className="w-full h-auto"
-              />
-
-              {/* Left phone screen overlay: card identity, sits in the
-                  blank gap the photo leaves between its baked-in orange
-                  header bar and QR code. Coordinates measured directly
-                  off the source image's pixels (see PR/commit notes),
-                  not eyeballed -- the phone screen is a precise, narrow
-                  target. */}
-              <div className="absolute text-white text-center leading-none" style={{ left: "37%", top: "33.1%", width: "9%" }}>
-                <div className="text-[6px] sm:text-[7px] font-bold tracking-tight">Nexxa|DBC</div>
-              </div>
-              <div className="absolute text-center leading-none" style={{ left: "37%", top: "36.6%", width: "9%" }}>
-                <div className="text-[6px] sm:text-[7px] font-semibold text-[var(--color-foreground)]">John Doe</div>
-                <div className="text-[5px] text-[var(--color-muted-fg)] mt-[2px]">CEO</div>
-              </div>
-
-              {/* Right phone screen overlay: lead-capture form heading,
-                  in the blank space above the photo's baked-in person
-                  icon and field placeholders. */}
-              <div className="absolute text-center leading-none whitespace-nowrap" style={{ left: "54.8%", top: "30.8%", width: "9.5%" }}>
-                <div className="text-[6px] sm:text-[7px] font-semibold text-[var(--color-foreground)]">Send your info</div>
-                <div className="hidden sm:block text-[5px] text-[var(--color-muted-fg)] mt-[2px]">Let&rsquo;s stay connected!</div>
-              </div>
-
-              {/* Floating leads-tracking widget: demo data illustrating
-                  the Real-time Insights feature, not a live figure. */}
-              <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-5 py-4 w-[220px] sm:w-[260px]">
-                <div className="text-[11px] text-[var(--color-muted-fg)]">Total Leads</div>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <div className="text-2xl font-semibold">258</div>
-                  <span className="text-[11px] font-semibold text-green-600">&uarr; 32%</span>
-                </div>
-                <div className="text-[10px] text-[var(--color-muted-fg)] mb-3">vs last 30 days</div>
-                <div className="flex items-center gap-3">
-                  <svg viewBox="0 0 100 32" className="w-16 h-8 shrink-0" preserveAspectRatio="none">
-                    <polyline
-                      points="0,26 14,22 28,24 42,14 56,18 70,8 84,10 100,2"
-                      fill="none"
-                      stroke="var(--color-accent)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <div className="relative w-10 h-10 rounded-full shrink-0" style={{ background: "conic-gradient(#ff3b00 0deg 167.4deg, #f5a623 167.4deg 304.2deg, #1d1d1d 304.2deg 360deg)" }}>
-                    <div className="absolute inset-[3px] bg-white rounded-full" />
-                  </div>
-                  <ul className="text-[9px] leading-tight space-y-1">
-                    <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" /> New <span className="font-semibold ml-auto">120</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#f5a623]" /> Saved <span className="font-semibold ml-auto">98</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-dark)]" /> Contacted <span className="font-semibold ml-auto">40</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+            {/* Mobile/tablet: photo in normal flow, unscaled, below the
+                text. Desktop swaps to the bled/enlarged version further
+                down (see heroPhotoBlock's other usage), which is
+                absolutely positioned against the section itself rather
+                than living in this flow. */}
+            <div className="mt-12 lg:hidden">{heroPhotoBlock}</div>
           </div>
 
           <div className="bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-10 py-8 flex flex-wrap items-center gap-x-10 gap-y-8 justify-between">
@@ -418,6 +435,22 @@ export default function Landing() {
               <img src={heroTrustedLogos} alt="RE/MAX, Ayala Land, ACN, BNI" className="h-6 w-auto" />
             </div>
           </div>
+        </div>
+
+        {/* Desktop: photo bleeds to the true right edge of the viewport
+            (not just its grid column), enlarged 40%, sent behind the
+            text column (z-0 vs the text's z-10) so the headline stays
+            readable where the enlarged photo now overlaps it, and
+            shifted up 40px. Positioned against the section itself
+            (which has no horizontal padding of its own -- padding
+            lives on the inner max-w wrapper instead) so right-0 lands
+            on the actual viewport edge regardless of the max-w-[1320px]
+            centering above. */}
+        <div
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%]"
+          style={{ transform: "translateY(-40px) scale(1.4)", transformOrigin: "top right" }}
+        >
+          {heroPhotoBlock}
         </div>
       </section>
 
