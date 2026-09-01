@@ -401,23 +401,23 @@ export default function Landing() {
             <div className="mt-12 lg:hidden">{heroPhotoBlock}</div>
           </div>
 
-          <div className="bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-10 py-8 flex flex-wrap items-center gap-x-10 gap-y-8 justify-between">
-            <div className="flex flex-wrap gap-x-10 gap-y-8">
+          <div className="bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
+            <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 shrink-0">
               {HERO_STATS.map((s) => (
-                <div key={s.label} className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-[var(--color-accent-tint)] flex items-center justify-center shrink-0">
-                    <s.Icon size={19} className="text-[var(--color-accent)]" />
+                <div key={s.label} className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-accent-tint)] flex items-center justify-center shrink-0">
+                    <s.Icon size={17} className="text-[var(--color-accent)]" />
                   </div>
                   <div>
-                    <div className="text-xl font-semibold text-[var(--color-accent)]">{s.value}</div>
-                    <div className="text-[12px] text-[var(--color-muted-fg-2)] leading-tight max-w-[140px]">{s.label}</div>
+                    <div className="text-lg font-semibold text-[var(--color-accent)]">{s.value}</div>
+                    <div className="text-[11px] text-[var(--color-muted-fg-2)] leading-tight max-w-[120px]">{s.label}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="flex flex-col gap-3">
-              <div className="text-[12px] text-[var(--color-muted-fg)]">Trusted by Professionals and Businesses</div>
-              <img src={heroTrustedLogos} alt="RE/MAX, Ayala Land, ACN, BNI" className="h-6 w-auto" />
+            <div className="flex flex-col gap-2 shrink-0">
+              <div className="text-[11px] text-[var(--color-muted-fg)] whitespace-nowrap">Trusted by Professionals and Businesses</div>
+              <img src={heroTrustedLogos} alt="RE/MAX, Ayala Land, ACN, BNI" className="h-5 w-auto" />
             </div>
           </div>
         </div>
@@ -440,7 +440,7 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="px-6 md:px-12 py-20 scroll-mt-6">
+      <section id="how-it-works" className="px-6 md:px-12 pt-[50px] pb-20 scroll-mt-6">
         <h2 className="text-center text-3xl md:text-[40px] font-medium mb-16">How It works</h2>
         <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10">
           {STEPS.map((s, i) => (
