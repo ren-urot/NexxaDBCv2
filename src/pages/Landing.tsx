@@ -297,7 +297,7 @@ export default function Landing() {
             />
           </svg>
         </div>
-        <div className="w-px bg-[var(--color-border-2)] shrink-0" />
+        <div className="w-px bg-[var(--color-border-2)] shrink-0 self-stretch my-3" />
         <div className="flex items-center gap-3 shrink-0">
           <div className="relative w-14 h-14 rounded-full shrink-0" style={{ background: "conic-gradient(#ff3b00 0deg 167.4deg, #f5a623 167.4deg 304.2deg, #2f6feb 304.2deg 360deg)" }}>
             <div className="absolute inset-[10px] bg-white rounded-full" />
