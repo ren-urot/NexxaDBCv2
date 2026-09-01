@@ -271,14 +271,18 @@ export default function Landing() {
       />
 
       {/* Floating leads-tracking widget: demo data illustrating the
-          Real-time Insights feature, not a live figure. */}
-      {/* The lg:-only translate compensates for the 1.4x scale on this
-          whole block's desktop ancestor (see heroPhotoBlock's other
-          usage below) -- a flat 60px/30px on-screen shift needs
-          60/1.4 and 30/1.4 here so it lands correctly post-scale. Left
-          off at the mobile size, which isn't inside that scaled
-          ancestor. */}
-      <div className="absolute -bottom-4 right-0 sm:right-4 bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-5 py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-4 lg:[transform:translate(-98.29px,-74.86px)_scale(0.8)]">
+          Real-time Insights feature, not a live figure. Positioned by
+          percentage within the photo's own box (same technique as the
+          phone overlays), not bottom-anchored -- a bottom-anchor ties
+          its position to the block's rendered height, so on the scaled
+          desktop ancestor a bigger photo pushed it further down each
+          time the photo grew, eventually colliding with the trust bar
+          below. Percentage positioning keeps it in the same relative
+          spot on the photo regardless of how big the photo renders. */}
+      <div
+        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4"
+        style={{ top: "33%", right: "3%" }}
+      >
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
           <div className="flex items-baseline gap-2 mt-0.5">
@@ -401,7 +405,7 @@ export default function Landing() {
             <div className="mt-12 lg:hidden">{heroPhotoBlock}</div>
           </div>
 
-          <div className="relative z-10 bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
+          <div className="relative z-10 max-w-[1224px] bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between">
             <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 shrink-0">
               {HERO_STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
@@ -424,27 +428,25 @@ export default function Landing() {
         </div>
 
         {/* Desktop: photo bleeds to the true right edge of the viewport
-            (not just its grid column), enlarged 40%, sent behind the
-            text column (z-0 vs the text's z-10) so the headline stays
+            (not just its grid column), enlarged, sent behind the text
+            column (z-0 vs the text's z-10) so the headline stays
             readable where the enlarged photo now overlaps it, and
             shifted up 40px. Positioned against the section itself
             (which has no horizontal padding of its own -- padding
             lives on the inner max-w wrapper instead) so right-0 lands
-            on the actual viewport edge regardless of the max-w-[1320px]
-            centering above.
+            on the actual viewport edge regardless of the hero content
+            below being fluid too.
 
-            max-w-[662px] caps it at exactly what 46% resolves to at
-            1440px (the width this was tuned against) -- without it,
-            width (and therefore height, since the image keeps its
-            aspect ratio) keeps growing past that on wider monitors,
-            and since the Total Leads widget is bottom-anchored inside
-            this block, a taller photo pushes the widget down far
-            enough to collide with the trust bar below. The text column
-            doesn't grow past its own max-w-[820px] either, so without
-            this cap the two drift apart at wide viewports. */}
+            Deliberately no max-width here: width (and height, since the
+            image keeps its aspect ratio) scales with viewport width by
+            design, matching every other element in this fluid hero.
+            The Total Leads widget inside is positioned by percentage
+            rather than bottom-anchored specifically so this can stay
+            fully fluid without the widget drifting into the trust bar
+            as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%] max-w-[662px]"
-          style={{ transform: "translateY(-40px) scale(1.4)", transformOrigin: "top right" }}
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%]"
+          style={{ transform: "translateY(-40px) scale(1.5)", transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
         </div>
