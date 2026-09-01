@@ -300,7 +300,7 @@ export default function Landing() {
         <div className="w-px bg-[var(--color-border-2)] shrink-0" />
         <div className="flex items-center gap-3 shrink-0">
           <div className="relative w-14 h-14 rounded-full shrink-0" style={{ background: "conic-gradient(#ff3b00 0deg 167.4deg, #f5a623 167.4deg 304.2deg, #2f6feb 304.2deg 360deg)" }}>
-            <div className="absolute inset-[5px] bg-white rounded-full" />
+            <div className="absolute inset-[10px] bg-white rounded-full" />
           </div>
           <ul className="text-[10px] leading-tight space-y-1.5">
             <li className="flex items-center gap-1.5">
