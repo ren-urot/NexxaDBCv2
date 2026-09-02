@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Info, Share2, UserPlus, BarChart3, PenLine, ArrowRight, Users, QrCode, TrendingUp, ShieldCheck } from "lucide-react";
+import { Info, Share2, UserPlus, BarChart3, ArrowRight, Users, QrCode, TrendingUp, ShieldCheck } from "lucide-react";
 import Logo from "../components/Logo";
 import heroPhoto from "../assets/hero-photo.png";
 import heroTrustedLogos from "../assets/hero-trusted-logos.png";
@@ -24,7 +24,6 @@ const HERO_FEATURES = [
   { Icon: Share2, title: "Instant Sharing", body: "Share your card in seconds." },
   { Icon: UserPlus, title: "Lead Capture", body: "Collect contact info automatically." },
   { Icon: BarChart3, title: "Real-time Insights", body: "Track views, saves and leads." },
-  { Icon: PenLine, title: "Always Up to Date", body: "Update your info anytime, anywhere." },
 ];
 
 const HERO_STATS = [
@@ -280,7 +279,7 @@ export default function Landing() {
           below. Percentage positioning keeps it in the same relative
           spot on the photo regardless of how big the photo renders. */}
       <div
-        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)_translate(-96px,180px)] lg:[transform-origin:top_right]"
+        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)_translate(-96px,180px)] lg:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,214px)] 2xl:[transform-origin:top_right]"
         style={{ top: "33%", right: "3%" }}
       >
         <div className="flex-1 min-w-0">
@@ -375,12 +374,12 @@ export default function Landing() {
                 your business.
               </p>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 mb-10 max-w-[410px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 mb-10 max-w-[460px]">
                 {HERO_FEATURES.map((f) => (
                   <div key={f.title}>
                     <f.Icon size={21} className="text-[var(--color-accent)] mb-2" strokeWidth={1.75} />
-                    <div className="text-[11px] font-semibold mb-1 whitespace-nowrap">{f.title}</div>
-                    <p className="text-[10px] text-[var(--color-muted-fg)] leading-snug">{f.body}</p>
+                    <div className="text-[14px] font-semibold mb-1 whitespace-nowrap">{f.title}</div>
+                    <p className="text-[12.5px] text-[var(--color-muted-fg)] leading-snug">{f.body}</p>
                   </div>
                 ))}
               </div>
@@ -445,7 +444,7 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%] lg:[transform:translateY(-40px)_scale(1.5)] xl:[transform:translateY(-40px)_scale(1.5)] 2xl:[transform:translateY(-40px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%] 2xl:ml-[120px] lg:[transform:translateY(-40px)_scale(1.5)] xl:[transform:translateY(-40px)_scale(1.5)] 2xl:[transform:translateY(-40px)_scale(1.2)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
