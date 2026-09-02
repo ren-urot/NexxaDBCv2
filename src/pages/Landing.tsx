@@ -280,7 +280,7 @@ export default function Landing() {
           below. Percentage positioning keeps it in the same relative
           spot on the photo regardless of how big the photo renders. */}
       <div
-        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)_translate(-24px,39px)] lg:[transform-origin:top_right]"
+        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)_translate(-48px,86px)] lg:[transform-origin:top_right]"
         style={{ top: "33%", right: "3%" }}
       >
         <div className="flex-1 min-w-0">
