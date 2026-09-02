@@ -445,8 +445,8 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%]"
-          style={{ transform: "translateY(-40px) scale(1.5)", transformOrigin: "top right" }}
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%] lg:[transform:translateY(-40px)_scale(1.5)] 2xl:[transform:translateY(-40px)_scale(1.2)]"
+          style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
         </div>
