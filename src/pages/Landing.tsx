@@ -280,7 +280,7 @@ export default function Landing() {
           below. Percentage positioning keeps it in the same relative
           spot on the photo regardless of how big the photo renders. */}
       <div
-        className="absolute top-[41%] right-[18%] 2xl:top-[43%] 2xl:right-[14%] bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.7225)_translate(-156px,195px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,184px)] 2xl:[transform-origin:top_right]"
+        className="absolute top-[41%] right-[18%] 2xl:top-[43%] 2xl:right-[14%] bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 [transform:scale(0.55)] [transform-origin:top_right] sm:[transform:scale(0.65)] lg:[transform:scale(0.7225)_translate(-156px,195px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,184px)] 2xl:[transform-origin:top_right]"
       >
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
@@ -359,12 +359,8 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
         <div
-          className="hidden lg:block absolute inset-0 z-0 bg-no-repeat opacity-20"
-          style={{
-            backgroundImage: `url(${heroBackground})`,
-            backgroundSize: "calc(70% + 1100px)",
-            backgroundPosition: "center calc(50% - 122px)",
-          }}
+          className="absolute inset-0 z-0 bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
+          style={{ backgroundImage: `url(${heroBackground})` }}
         />
         <div className="w-full px-6 md:px-12">
           <div className="mb-16">
@@ -409,11 +405,11 @@ export default function Landing() {
                 down (see heroPhotoBlock's other usage), which is
                 absolutely positioned against the section itself rather
                 than living in this flow. */}
-            <div className="relative z-10 mt-12 lg:hidden">{heroPhotoBlock}</div>
+            <div className="hidden">{heroPhotoBlock}</div>
           </div>
 
           <div className="relative z-10 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between lg:-translate-y-[35px] 2xl:translate-y-[5px]">
-            <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 shrink-0">
+            <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 w-full lg:w-auto lg:shrink-0">
               {HERO_STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-full bg-[var(--color-accent-tint)] flex items-center justify-center shrink-0">
@@ -427,7 +423,7 @@ export default function Landing() {
               ))}
             </div>
             <div className="hidden lg:block w-px self-stretch bg-[var(--color-border-2)]" />
-            <div className="flex flex-col gap-2 shrink-0 -translate-x-[30px]">
+            <div className="flex flex-col gap-2 lg:shrink-0 lg:-translate-x-[30px]">
               <div className="text-[12px] text-[var(--color-muted-fg)] whitespace-nowrap">Trusted by Professionals and Businesses</div>
               <img src={heroTrustedLogos} alt="RE/MAX, Ayala Land, ACN, BNI" className="h-9 w-auto" />
             </div>
@@ -461,7 +457,7 @@ export default function Landing() {
 
       {/* How it works */}
       <section id="how-it-works" className="px-6 md:px-12 pt-[20px] pb-20 scroll-mt-6">
-        <h2 className="text-center text-3xl md:text-[40px] font-medium mb-16">How It works</h2>
+        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[40px] mb-16">How It works</h2>
         <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10">
           {STEPS.map((s, i) => (
             <div key={s.num} className={i > 0 ? "md:border-l md:border-[var(--color-border-2)] md:pl-10" : ""}>
@@ -494,7 +490,7 @@ export default function Landing() {
 
       {/* Pricing */}
       <section id="pricing" className="px-6 md:px-12 py-24 scroll-mt-6">
-        <h2 className="text-center text-3xl md:text-[40px] font-medium mb-3">
+        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[40px] mb-3">
           Simple, <span className="text-[var(--color-accent)]">One-Time</span> Pricing
         </h2>
         <p className="text-center text-lg text-[var(--color-muted-fg)] mb-16">
