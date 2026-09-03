@@ -40,3 +40,4 @@ supabase/migration-owned-cards.sql
 supabase/migration-admin-push.sql
 supabase/.temp
 .vercel
+.env*

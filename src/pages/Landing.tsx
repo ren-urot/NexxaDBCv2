@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Info, Share2, UserPlus, BarChart3, ArrowRight, Users, QrCode, TrendingUp, ShieldCheck } from "lucide-react";
 import Logo from "../components/Logo";
-import heroPhoto from "../assets/hero-photo.png";
+import heroPhoto from "../assets/hero-photo5.png";
+import heroBackground from "../assets/hero-background.png";
 import heroTrustedLogos from "../assets/hero-trusted-logos.png";
 import iconCaptions from "../assets/icon-captions.svg";
 import iconDock from "../assets/icon-dock.svg";
@@ -279,8 +280,8 @@ export default function Landing() {
           below. Percentage positioning keeps it in the same relative
           spot on the photo regardless of how big the photo renders. */}
       <div
-        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)_translate(-96px,180px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,214px)] 2xl:[transform-origin:top_right]"
-        style={{ top: "33%", right: "3%" }}
+        className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.85)_translate(-156px,215px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,214px)] 2xl:[transform-origin:top_right]"
+        style={{ top: "43%", right: "14%" }}
       >
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
@@ -357,7 +358,15 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-16 pb-16 bg-white overflow-hidden">
+      <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
+        <div
+          className="absolute inset-0 z-0 bg-no-repeat opacity-25"
+          style={{
+            backgroundImage: `url(${heroBackground})`,
+            backgroundSize: "calc(70% + 1100px)",
+            backgroundPosition: "center calc(50% - 122px)",
+          }}
+        />
         <div className="w-full px-6 md:px-12">
           <div className="mb-16">
             <div className="relative z-10 lg:max-w-[820px]">
@@ -444,7 +453,7 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[46%] 2xl:ml-[360px] lg:[transform:translateY(-40px)_scale(1.5)] xl:[transform:translateY(-40px)_scale(1.5)] 2xl:[transform:translateY(-40px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[calc(46%-40px)] 2xl:ml-[360px] lg:[transform:translateY(50px)_scale(1.5)] xl:[transform:translateY(50px)_scale(1.5)] 2xl:[transform:translateY(50px)_scale(1.2)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
