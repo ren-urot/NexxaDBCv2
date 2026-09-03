@@ -456,8 +456,8 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="px-6 md:px-12 pt-[20px] pb-20 scroll-mt-6">
-        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[40px] mb-16">How It works</h2>
+      <section id="how-it-works" className="px-6 md:px-12 pt-[90px] lg:pt-[20px] pb-20 scroll-mt-6">
+        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[-25px] lg:mt-0 mb-16">How It works</h2>
         <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10">
           {STEPS.map((s, i) => (
             <div key={s.num} className={i > 0 ? "md:border-l md:border-[var(--color-border-2)] md:pl-10" : ""}>
@@ -490,7 +490,7 @@ export default function Landing() {
 
       {/* Pricing */}
       <section id="pricing" className="px-6 md:px-12 py-24 scroll-mt-6">
-        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[40px] mb-3">
+        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[-25px] lg:mt-0 mb-3">
           Simple, <span className="text-[var(--color-accent)]">One-Time</span> Pricing
         </h2>
         <p className="text-center text-lg text-[var(--color-muted-fg)] mb-16">
