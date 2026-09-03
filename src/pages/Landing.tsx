@@ -409,7 +409,7 @@ export default function Landing() {
                 down (see heroPhotoBlock's other usage), which is
                 absolutely positioned against the section itself rather
                 than living in this flow. */}
-            <div className="mt-12 lg:hidden">{heroPhotoBlock}</div>
+            <div className="relative z-10 mt-12 lg:hidden">{heroPhotoBlock}</div>
           </div>
 
           <div className="relative z-10 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between lg:-translate-y-[35px] 2xl:translate-y-[5px]">
