@@ -359,7 +359,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
         <div
-          className="absolute inset-0 z-0 bg-no-repeat opacity-20"
+          className="hidden lg:block absolute inset-0 z-0 bg-no-repeat opacity-20"
           style={{
             backgroundImage: `url(${heroBackground})`,
             backgroundSize: "calc(70% + 1100px)",
