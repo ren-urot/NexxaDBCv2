@@ -359,7 +359,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
         <div
-          className="absolute inset-0 z-0 bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
+          className="absolute top-0 left-0 right-0 bottom-[60px] z-0 bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
           style={{ backgroundImage: `url(${heroBackground})` }}
         />
         <div className="w-full px-6 md:px-12">
@@ -368,7 +368,7 @@ export default function Landing() {
               <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
                 Smart. Professional. Paperless.
               </span>
-              <h1 className="text-[40px] sm:text-[50px] lg:text-[62px] font-semibold tracking-tight leading-[1.08] mb-6 whitespace-normal lg:whitespace-nowrap">
+              <h1 className="text-[40px] sm:text-[50px] lg:text-[62px] font-semibold tracking-tight leading-[1.08] mt-[-30px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
                 More Than a Card.
                 <br />
                 It&rsquo;s a <span className="text-[var(--color-accent)]">Lead Generator.</span>
@@ -408,7 +408,7 @@ export default function Landing() {
             <div className="hidden">{heroPhotoBlock}</div>
           </div>
 
-          <div className="relative z-10 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between lg:-translate-y-[35px] 2xl:translate-y-[5px]">
+          <div className="hidden lg:flex relative z-10 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between lg:-translate-y-[35px] 2xl:translate-y-[5px]">
             <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 w-full lg:w-auto lg:shrink-0">
               {HERO_STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
@@ -416,7 +416,7 @@ export default function Landing() {
                     <s.Icon size={17} className="text-[var(--color-accent)]" />
                   </div>
                   <div>
-                    <div className="text-lg font-semibold text-[var(--color-accent)]">{s.value}</div>
+                    <div className="text-[14.4px] lg:text-lg font-semibold text-[var(--color-accent)]">{s.value}</div>
                     <div className="text-[11px] text-[var(--color-muted-fg-2)] leading-tight max-w-[120px]">{s.label}</div>
                   </div>
                 </div>
@@ -456,7 +456,7 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="px-6 md:px-12 pt-[90px] lg:pt-[20px] pb-20 scroll-mt-6">
+      <section id="how-it-works" className="px-6 md:px-12 pt-[30px] lg:pt-[20px] pb-20 scroll-mt-6">
         <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[-25px] lg:mt-0 mb-16">How It works</h2>
         <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10">
           {STEPS.map((s, i) => (
