@@ -281,7 +281,7 @@ export default function Landing() {
           spot on the photo regardless of how big the photo renders. */}
       <div
         className="absolute bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 lg:[transform:scale(0.7225)_translate(-156px,195px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,184px)] 2xl:[transform-origin:top_right]"
-        style={{ top: "43%", right: "14%" }}
+        style={{ top: "41%", right: "18%" }}
       >
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
