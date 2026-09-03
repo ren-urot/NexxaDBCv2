@@ -461,7 +461,7 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="px-6 md:px-12 pt-[50px] pb-20 scroll-mt-6">
+      <section id="how-it-works" className="px-6 md:px-12 pt-[20px] pb-20 scroll-mt-6">
         <h2 className="text-center text-3xl md:text-[40px] font-medium mb-16">How It works</h2>
         <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10">
           {STEPS.map((s, i) => (
