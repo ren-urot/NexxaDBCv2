@@ -365,7 +365,7 @@ export default function Landing() {
         <div className="relative z-20 w-full px-6 md:px-12 2xl:translate-x-[130px]">
           <div className="mb-16">
             <div className="relative z-10 lg:max-w-[820px]">
-              <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
+              <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6 -mt-[25px] lg:mt-0">
                 Smart. Professional. Paperless.
               </span>
               <h1 className="text-[32px] sm:text-[50px] lg:text-[59px] font-semibold tracking-tight leading-[1.08] mt-[-10px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
