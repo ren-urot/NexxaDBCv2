@@ -267,7 +267,7 @@ export default function Landing() {
       <img
         src={heroPhoto}
         alt="Two professionals exchanging digital business cards by scanning a QR code"
-        className="w-full h-auto"
+        className="relative z-[-10] w-full h-auto"
       />
 
       {/* Floating leads-tracking widget: demo data illustrating the
