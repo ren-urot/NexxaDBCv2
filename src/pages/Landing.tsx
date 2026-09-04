@@ -359,7 +359,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
         <div
-          className="absolute top-0 left-0 right-0 bottom-[60px] lg:bottom-[20px] z-[-1] bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
+          className="absolute inset-0 lg:bottom-[20px] z-[-1] bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
           style={{ backgroundImage: `url(${heroBackground})` }}
         />
         <div className="relative z-20 w-full px-6 md:px-12 2xl:translate-x-[130px]">
