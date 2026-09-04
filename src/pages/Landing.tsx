@@ -357,15 +357,15 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
+      <section className="relative isolate pt-6 pb-6 lg:pt-16 lg:pb-16 bg-white overflow-hidden">
         <div
           className="absolute inset-0 lg:bottom-[20px] z-[-1] bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
           style={{ backgroundImage: `url(${heroBackground})` }}
         />
         <div className="relative z-20 w-full px-6 md:px-12 2xl:translate-x-[130px]">
-          <div className="mb-16">
+          <div className="mb-0 lg:mb-16">
             <div className="relative z-10 lg:max-w-[820px]">
-              <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6 -mt-[100px] lg:mt-0">
+              <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-3 lg:mb-6 -mt-[100px] lg:mt-0">
                 Smart. Professional. Paperless.
               </span>
               <h1 className="text-[32px] sm:text-[50px] lg:text-[59px] font-semibold tracking-tight leading-[1.08] mt-[-10px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
@@ -373,12 +373,12 @@ export default function Landing() {
                 <br />
                 It&rsquo;s a <span className="text-[var(--color-accent)]">Lead Generator.</span>
               </h1>
-              <p className="text-[12.6px] lg:text-lg text-[var(--color-muted-fg-2)] leading-relaxed mb-10 max-w-md">
+              <p className="text-[12.6px] lg:text-lg text-[var(--color-muted-fg-2)] leading-relaxed mb-4 lg:mb-10 max-w-md">
                 Create your digital business card and turn every scan into a connection, capture leads, and grow
                 your business.
               </p>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 mb-10 max-w-[460px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 lg:gap-5 mb-4 lg:mb-10 max-w-[460px]">
                 {HERO_FEATURES.map((f) => (
                   <div key={f.title}>
                     <f.Icon size={21} className="text-[var(--color-accent)] mb-2" strokeWidth={1.75} />
@@ -395,7 +395,7 @@ export default function Landing() {
                 Create My Digital Card
                 <ArrowRight size={16} />
               </button>
-              <p className="text-sm text-[var(--color-muted-fg-2)] mt-4">
+              <p className="text-sm text-[var(--color-muted-fg-2)] mt-2 lg:mt-4">
                 One-time payment · No subscription · <span className="text-green-600 font-medium">FREE Plan available</span>
               </p>
             </div>
