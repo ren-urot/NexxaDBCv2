@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Info, Share2, UserPlus, BarChart3, ArrowRight, Users, QrCode, TrendingUp, ShieldCheck } from "lucide-react";
+import { Info, Share2, UserPlus, MessageCircle, ArrowRight, Users, QrCode, TrendingUp, ShieldCheck } from "lucide-react";
 import Logo from "../components/Logo";
 import heroPhoto from "../assets/hero-photo5.png";
 import heroBackground from "../assets/hero-background.png";
@@ -24,7 +24,7 @@ const STEPS = [
 const HERO_FEATURES = [
   { Icon: Share2, title: "Instant Sharing", body: "Share your card in seconds." },
   { Icon: UserPlus, title: "Lead Capture", body: "Collect contact info automatically." },
-  { Icon: BarChart3, title: "Real-time Insights", body: "Track views, saves and leads." },
+  { Icon: MessageCircle, title: "In-App Chat", body: "Message leads directly, no extra apps." },
 ];
 
 const HERO_STATS = [
@@ -448,7 +448,7 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(50px)_scale(1.5)] xl:[transform:translateY(50px)_scale(1.5)] 2xl:[transform:translate(130px,50px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(20px)_scale(1.5)] xl:[transform:translateY(20px)_scale(1.5)] 2xl:[transform:translate(130px,20px)_scale(1.2)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
