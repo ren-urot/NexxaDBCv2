@@ -457,7 +457,7 @@ export default function Landing() {
 
       {/* How it works */}
       <section id="how-it-works" className="px-6 md:px-12 pt-[30px] lg:pt-[20px] pb-20 scroll-mt-6">
-        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[-25px] lg:mt-0 mb-16">How It works</h2>
+        <h2 className="text-center text-3xl md:text-[40px] font-medium mt-[45px] lg:mt-0 mb-16">How It works</h2>
         <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10">
           {STEPS.map((s, i) => (
             <div key={s.num} className={i > 0 ? "md:border-l md:border-[var(--color-border-2)] md:pl-10" : ""}>
