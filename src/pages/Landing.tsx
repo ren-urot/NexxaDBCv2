@@ -267,7 +267,7 @@ export default function Landing() {
       <img
         src={heroPhoto}
         alt="Two professionals exchanging digital business cards by scanning a QR code"
-        className="relative z-[-10] w-full h-auto"
+        className="relative z-[-1] w-full h-auto"
       />
 
       {/* Floating leads-tracking widget: demo data illustrating the
@@ -359,7 +359,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative isolate pt-16 pb-16 bg-white overflow-hidden">
         <div
-          className="absolute top-0 left-0 right-0 bottom-[60px] z-0 bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
+          className="absolute top-0 left-0 right-0 bottom-[60px] z-[-1] bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
           style={{ backgroundImage: `url(${heroBackground})` }}
         />
         <div className="w-full px-6 md:px-12 2xl:translate-x-[130px]">
@@ -368,7 +368,7 @@ export default function Landing() {
               <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
                 Smart. Professional. Paperless.
               </span>
-              <h1 className="text-[40px] sm:text-[50px] lg:text-[62px] font-semibold tracking-tight leading-[1.08] mt-[-30px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
+              <h1 className="text-[40px] sm:text-[50px] lg:text-[59px] xl:text-[62px] font-semibold tracking-tight leading-[1.08] mt-[-30px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
                 More Than a Card.
                 <br />
                 It&rsquo;s a <span className="text-[var(--color-accent)]">Lead Generator.</span>
