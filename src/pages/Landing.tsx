@@ -368,7 +368,7 @@ export default function Landing() {
               <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
                 Smart. Professional. Paperless.
               </span>
-              <h1 className="text-[40px] sm:text-[50px] lg:text-[59px] font-semibold tracking-tight leading-[1.08] mt-[-30px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
+              <h1 className="text-[32px] sm:text-[50px] lg:text-[59px] font-semibold tracking-tight leading-[1.08] mt-[-30px] lg:mt-0 mb-6 whitespace-normal lg:whitespace-nowrap">
                 More Than a Card.
                 <br />
                 It&rsquo;s a <span className="text-[var(--color-accent)]">Lead Generator.</span>
