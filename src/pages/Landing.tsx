@@ -408,7 +408,7 @@ export default function Landing() {
             <div className="hidden">{heroPhotoBlock}</div>
           </div>
 
-          <div className="hidden lg:flex relative z-20 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between lg:-translate-y-[35px] 2xl:-translate-y-[20px] 2xl:-translate-x-[130px]">
+          <div className="hidden lg:flex relative z-20 max-w-[1224px] mx-auto bg-white rounded-[20px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] px-6 sm:px-8 py-8 flex-wrap lg:flex-nowrap items-center gap-x-6 gap-y-6 justify-between lg:-translate-y-[35px] 2xl:translate-y-[5px] 2xl:-translate-x-[130px]">
             <div className="flex flex-wrap lg:flex-nowrap gap-x-6 gap-y-6 w-full lg:w-auto lg:shrink-0">
               {HERO_STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
@@ -448,7 +448,7 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(67px)_scale(1.5)] xl:[transform:translateY(45px)_scale(1.5)] 2xl:[transform:translate(130px,45px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(61px)_scale(1.5)] xl:[transform:translateY(39px)_scale(1.5)] 2xl:[transform:translate(130px,39px)_scale(1.2)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
