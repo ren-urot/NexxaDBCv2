@@ -280,7 +280,7 @@ export default function Landing() {
           below. Percentage positioning keeps it in the same relative
           spot on the photo regardless of how big the photo renders. */}
       <div
-        className="absolute top-[41%] right-[18%] 2xl:top-[43%] 2xl:right-[14%] bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 [transform:scale(0.55)] [transform-origin:top_right] sm:[transform:scale(0.65)] lg:[transform:scale(0.7225)_translate(-156px,195px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,184px)] 2xl:[transform-origin:top_right]"
+        className="absolute z-20 top-[41%] right-[18%] 2xl:top-[43%] 2xl:right-[14%] bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 [transform:scale(0.55)] [transform-origin:top_right] sm:[transform:scale(0.65)] lg:[transform:scale(0.7225)_translate(-156px,195px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,184px)] 2xl:[transform-origin:top_right]"
       >
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
@@ -448,7 +448,7 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(20px)_scale(1.5)] xl:[transform:translateY(20px)_scale(1.5)] 2xl:[transform:translate(130px,20px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(20px)_scale(1.5)] xl:[transform:translateY(20px)_scale(1.5)] 2xl:[transform:translate(130px,20px)_scale(1.2)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
