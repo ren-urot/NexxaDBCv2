@@ -362,7 +362,7 @@ export default function Landing() {
           className="absolute top-0 left-0 right-0 bottom-[60px] z-0 bg-no-repeat opacity-20 bg-cover bg-center lg:bg-[length:calc(70%_+_1100px)] lg:bg-[position:center_calc(50%_-_122px)]"
           style={{ backgroundImage: `url(${heroBackground})` }}
         />
-        <div className="w-full px-6 md:px-12">
+        <div className="w-full px-6 md:px-12 2xl:translate-x-[250px]">
           <div className="mb-16">
             <div className="relative z-10 lg:max-w-[820px]">
               <span className="inline-flex items-center gap-2 bg-[var(--color-accent-tint)] text-[var(--color-accent)] text-sm px-5 py-2 rounded-full mb-6">
@@ -448,7 +448,7 @@ export default function Landing() {
             fully fluid without the widget drifting into the trust bar
             as the photo grows on wide screens (see its own comment). */}
         <div
-          className="hidden lg:block absolute top-0 right-0 z-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(50px)_scale(1.5)] xl:[transform:translateY(50px)_scale(1.5)] 2xl:[transform:translateY(50px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 z-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(50px)_scale(1.5)] xl:[transform:translateY(50px)_scale(1.5)] 2xl:[transform:translate(250px,50px)_scale(1.2)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
