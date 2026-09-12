@@ -11,7 +11,6 @@ import iconScanBarcode from "../assets/icon-scan-barcode.svg";
 import iconRepeat from "../assets/icon-repeat.svg";
 import iconCheck from "../assets/icon-check.svg";
 import iconPeso from "../assets/icon-peso.svg";
-import { formatUsd } from "../lib/currency";
 import { subscribeEmail } from "../lib/supabase";
 
 const STEPS = [
@@ -221,16 +220,13 @@ function Price({ value }: { value: number }) {
   }
   return (
     <div className="text-center">
-      <div className="flex items-end justify-center gap-1">
+      <div className="flex items-center justify-center gap-1.5">
+        <img src={iconPeso} alt="" className="w-6 h-6" />
         <span className="text-[44px] font-semibold tracking-tight text-[var(--color-foreground)] leading-none">
-          ${formatUsd(value)}
+          {value}
         </span>
-        <span className="text-sm text-[var(--color-muted-fg)] mb-2">USD</span>
       </div>
-      <div className="flex items-center justify-center gap-1 mt-1.5">
-        <img src={iconPeso} alt="" className="w-3.5 h-3.5" />
-        <span className="text-sm text-[var(--color-muted-fg)]">{value} PHP</span>
-      </div>
+      <span className="text-sm text-[var(--color-muted-fg)]">PHP</span>
     </div>
   );
 }
