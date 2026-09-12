@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Info, Share2, UserPlus, MessageCircle, ArrowRight, Users, QrCode, TrendingUp, ShieldCheck } from "lucide-react";
 import Logo from "../components/Logo";
-import heroPhoto from "../assets/hero-photo5.png";
+import heroPhoto from "../assets/hero-photo-iphone.png";
 import heroBackground from "../assets/hero-background.png";
 import heroTrustedLogos from "../assets/hero-trusted-logos.png";
 import iconCaptions from "../assets/icon-captions.svg";
@@ -262,64 +262,9 @@ export default function Landing() {
     <div className="relative mx-auto max-w-[520px] lg:max-w-none">
       <img
         src={heroPhoto}
-        alt="Two professionals exchanging digital business cards by scanning a QR code"
+        alt="Two iPhones showing a digital business card and its lead-capture screen"
         className="relative z-[-1] w-full h-auto"
       />
-
-      {/* Floating leads-tracking widget: demo data illustrating the
-          Real-time Insights feature, not a live figure. Positioned by
-          percentage within the photo's own box (same technique as the
-          phone overlays), not bottom-anchored -- a bottom-anchor ties
-          its position to the block's rendered height, so on the scaled
-          desktop ancestor a bigger photo pushed it further down each
-          time the photo grew, eventually colliding with the trust bar
-          below. Percentage positioning keeps it in the same relative
-          spot on the photo regardless of how big the photo renders. */}
-      <div
-        className="absolute z-20 top-[41%] right-[18%] 2xl:top-[43%] 2xl:right-[14%] bg-white rounded-2xl shadow-xl border border-[var(--color-border-2)] px-4 sm:px-5 py-2.5 sm:py-[11px] w-[280px] sm:w-[340px] flex items-stretch gap-3 sm:gap-4 [transform:scale(0.55)] [transform-origin:top_right] sm:[transform:scale(0.65)] lg:[transform:scale(0.7225)_translate(-156px,195px)] lg:[transform-origin:top_right] xl:[transform:scale(0.68)_translate(-96px,180px)] xl:[transform-origin:top_right] 2xl:[transform:scale(0.85)_translate(-174px,184px)] 2xl:[transform-origin:top_right]"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="text-[12px] text-[var(--color-muted-fg)]">Total Leads</div>
-          <div className="flex items-baseline gap-2 mt-0.5">
-            <div className="text-[26px] font-semibold leading-none">258</div>
-            <span className="flex items-center gap-0.5 text-[11px] font-semibold text-green-600">&#9650; 32%</span>
-          </div>
-          <div className="text-[11px] text-[var(--color-muted-fg)] mt-1 mb-3">vs last 30 days</div>
-          <svg viewBox="0 0 140 36" className="w-full h-9" preserveAspectRatio="none">
-            <polyline
-              points="0,30 16,26 32,28 48,16 64,20 80,10 96,14 112,6 128,10 140,2"
-              fill="none"
-              stroke="var(--color-accent)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <div className="w-px bg-[var(--color-border-2)] shrink-0 self-stretch my-3" />
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="relative w-14 h-14 rounded-full shrink-0" style={{ background: "conic-gradient(#ff3b00 0deg 167.4deg, #f5a623 167.4deg 304.2deg, #2f6feb 304.2deg 360deg)" }}>
-            <div className="absolute inset-[10px] bg-white rounded-full" />
-          </div>
-          <ul className="text-[10px] leading-tight space-y-1.5">
-            <li className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-[2px] bg-[var(--color-accent)] shrink-0" />
-              <span>New</span>
-              <span className="font-semibold ml-2">120</span>
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-[2px] bg-[#f5a623] shrink-0" />
-              <span>Saved</span>
-              <span className="font-semibold ml-2">98</span>
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-[2px] bg-[#2f6feb] shrink-0" />
-              <span>Contacted</span>
-              <span className="font-semibold ml-2">40</span>
-            </li>
-          </ul>
-        </div>
-      </div>
     </div>
   );
 
@@ -438,13 +383,9 @@ export default function Landing() {
 
             Deliberately no max-width here: width (and height, since the
             image keeps its aspect ratio) scales with viewport width by
-            design, matching every other element in this fluid hero.
-            The Total Leads widget inside is positioned by percentage
-            rather than bottom-anchored specifically so this can stay
-            fully fluid without the widget drifting into the trust bar
-            as the photo grows on wide screens (see its own comment). */}
+            design, matching every other element in this fluid hero. */}
         <div
-          className="hidden lg:block absolute top-0 right-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translateY(61px)_scale(1.5)] xl:[transform:translateY(39px)_scale(1.5)] 2xl:[transform:translate(130px,39px)_scale(1.2)]"
+          className="hidden lg:block absolute top-0 right-0 w-[calc(46%-40px)] 2xl:right-[300px] lg:[transform:translate(-140px,61px)_scale(1.0125)] xl:[transform:translate(-140px,39px)_scale(1.0125)] 2xl:[transform:translate(-10px,39px)_scale(0.81)]"
           style={{ transformOrigin: "top right" }}
         >
           {heroPhotoBlock}
