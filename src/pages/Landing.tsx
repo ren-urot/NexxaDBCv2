@@ -40,7 +40,7 @@ const PLANS = [
     name: "Free Trial",
     desc: "Try it before you buy it",
     price: 0,
-    priceCaption: "15 days free, no card required",
+    priceCaption: "No card required",
     cta: "outline" as const,
     features: [
       "Create 1 Digital Business Card",
